@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neo Dining</title>
+    <style>
+        :root {
+            --bg-body: #f5f5f7;
+            --bg-card: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent-color: #0071e3;
+            --card-radius: 24px;
+            --btn-radius: 980px;
+            --shadow-sm: 0 4px 12px rgba(0,0,0,0.04);
+            --shadow-hover: 0 12px 32px rgba(0,0,0,0.08);
+            --transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 120px;
+        }
+
+        /* 毛玻璃导航栏 */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 16px 0;
+            transition: var(--transition);
+        }
+
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 0 22px;
+        }
+
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .search-bar {
+            background: rgba(0,0,0,0.05);
+            border: none;
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-size: 15px;
+            width: 200px;
+            outline: none;
+            transition: var(--transition);
+        }
+        .search-bar:focus { background: rgba(0,0,0,0.08); width: 240px; }
+
+        /* 菜品网格 */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 32px;
+            margin-top: 40px;
+        }
+
+        /* Apple 风格卡片 */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--card-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            cursor: pointer;
+            opacity: 0; /* 用于入场动画 */
+            transform: translateY(20px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .card:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .card-img {
+            height: 200px;
+            background: #eee;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+        
+        .card-img-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            font-size: 14px;
+            background: #fbfbfd;
+        }
+
+        .card-content {
+            padding: 24px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .card-price {
+            font-size: 17px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .action-row {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: var(--btn-radius);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn:hover { background: #0077ED; }
+        .btn:active { transform: scale(0.96); }
+
+        .counter {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .counter-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            background: #e5e5ea;
+            color: black;
+            cursor: pointer;
+            font-size: 16px;
+            display: grid;
+            place-items: center;
+            transition: 0.2s;
+        }
+        .counter-btn:hover { background: #d1d1d6; }
+
+        /* 底部浮动栏 */
+        .float-bar {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(150%);
+            background: rgba(29, 29, 31, 0.9); /* 深色背景 */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 16px 32px;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            color: white;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            z-index: 200;
+            transition: var(--transition);
+        }
+        
+        .float-bar.show { transform: translateX(-50%) translateY(0); }
+
+        .total-price { font-size: 20px; font-weight: 600; }
+        
+        .checkout-btn {
+            background: white;
+            color: black;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .checkout-btn:hover { transform: scale(1.05); }
+
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="container nav-content">
+        <div class="brand">Neo Dining</div>
+        <input type="text" class="search-bar" placeholder="Search" oninput="filterMenu(this.value)">
+    </div>
+</nav>
+
+<div class="container">
+    <div class="grid" id="menu-grid">
+        </div>
+</div>
+
+<div class="float-bar" id="cart-bar">
+    <div class="total-price" id="total-display">¥0.00</div>
+    <button class="checkout-btn" onclick="submitOrder()">Pay</button>
+</div>
+
+<script>
+    let menuData = {};
+    let cart = {};
+
+    // 初始化
+    async function init() {
+        try {
+            const res = await fetch('/api/menu');
+            const json = await res.json();
+            menuData = json.data;
+            renderMenu(menuData);
+        } catch (e) { console.error("API Error", e); }
+    }
+
+    function renderMenu(data) {
+        const grid = document.getElementById('menu-grid');
+        grid.innerHTML = '';
+        
+        Object.entries(data).forEach(([name, info], index) => {
+            const price = info.price || info; // 兼容旧格式
+            const img = info.image;
+            const count = cart[name] || 0;
+
+            const card = document.createElement('div');
+            card.className = 'card';
+            // 添加交错动画延迟
+            card.style.transitionDelay = `${index * 50}ms`;
+            
+            card.innerHTML = `
+                <div class="card-img" style="${img ? `background-image:url('${img}')` : ''}" onclick="updateImage('${name}')">
+                    ${!img ? '<div class="card-img-placeholder">Set Image</div>' : ''}
+                </div>
+                <div class="card-content">
+                    <div class="card-title">${name}</div>
+                    <div class="card-price">¥${price.toFixed(2)}</div>
+                    <div class="action-row">
+                        ${count === 0 ? 
+                            `<button class="btn" onclick="updateCart('${name}', 1)">Add</button>` :
+                            `<div class="counter">
+                                <button class="counter-btn" onclick="updateCart('${name}', -1)">−</button>
+                                <span>${count}</span>
+                                <button class="counter-btn" onclick="updateCart('${name}', 1)">＋</button>
+                             </div>`
+                        }
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+            
+            // 触发重绘以启动动画
+            setTimeout(() => card.classList.add('visible'), 50);
+        });
+        updateBar();
+    }
+
+    function updateCart(name, delta) {
+        const current = cart[name] || 0;
+        const next = current + delta;
+        if (next <= 0) delete cart[name];
+        else cart[name] = next;
+        
+        // 重新渲染当前卡片所在的区域通常比较复杂，这里为了简单直接重绘
+        // 生产环境建议只更新 DOM 节点
+        renderMenu(menuData);
+    }
+
+    function updateBar() {
+        const bar = document.getElementById('cart-bar');
+        const totalEl = document.getElementById('total-display');
+        
+        let total = 0;
+        let count = 0;
+        Object.keys(cart).forEach(name => {
+            const info = menuData[name];
+            const price = info.price || info;
+            total += price * cart[name];
+            count += cart[name];
+        });
+
+        totalEl.innerText = `¥${total.toFixed(2)}`;
+        
+        if (count > 0) bar.classList.add('show');
+        else bar.classList.remove('show');
+    }
+
+    async function updateImage(name) {
+        const url = prompt("Enter Image URL for " + name);
+        if(url) {
+            await fetch('/api/admin/menu', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, image: url})
+            });
+            init(); // 刷新
+        }
+    }
+
+    async function submitOrder() {
+        const items = [];
+        Object.entries(cart).forEach(([name, count]) => {
+            for(let i=0; i<count; i++) items.push(name);
+        });
+
+        const res = await fetch('/api/order', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({items})
+        });
+        const json = await res.json();
+        alert(json.msg);
+        if(json.code === 200) {
+            cart = {};
+            renderMenu(menuData);
+        }
+    }
+
+    function filterMenu(query) {
+        const filtered = {};
+        Object.keys(menuData).forEach(key => {
+            if(key.toLowerCase().includes(query.toLowerCase())) {
+                filtered[key] = menuData[key];
+            }
+        });
+        renderMenu(filtered);
+    }
+
+    init();
+</script>
+</body>
+</html>

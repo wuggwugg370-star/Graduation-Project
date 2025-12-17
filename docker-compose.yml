@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  neo-dining:
+    build: .
+    container_name: neo_dining
+    ports:
+      - "5000:5000"
+    volumes:
+      # 将宿主机的 data 目录挂载到容器内，保证重启后菜单不丢失
+      - ./data:/app/data
+    restart: always
