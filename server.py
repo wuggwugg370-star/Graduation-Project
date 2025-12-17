@@ -6,14 +6,21 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from menu_store import MenuStore
 
-# === 配置部分 ===
-# 从环境变量读取配置，方便 Docker 部署时动态调整
-HOST = os.getenv("HOST", "0.0.0.0")
-PORT = int(os.getenv("PORT", 5000))
-DATA_DIR = Path("/app/data") if os.getenv("DOCKER_ENV") else Path(__file__).parent / "data"
-MENU_FILE = DATA_DIR / "menu_data.json"
+# === 路径配置 (核心修复) ===
+# 获取当前 server.py 所在的绝对路径
+BASE_DIR = Path(__file__).parent.resolve()
+# 强制指定 web 文件夹的绝对路径
+WEB_DIR = BASE_DIR / "web"
+MENU_FILE = BASE_DIR / "data" / "menu_data.json"
 
-# 默认菜单数据（当文件不存在时使用）
+# 确保 data 目录存在
+(BASE_DIR / "data").mkdir(parents=True, exist_ok=True)
+
+# 环境变量配置
+HOST = os.getenv("HOST", "0.0.0.0") # 允许局域网访问
+PORT = int(os.getenv("PORT", 5000))
+
+# 默认菜单
 DEFAULT_MENU = {
     "宫保鸡丁": 28.0, "鱼香肉丝": 24.0, "麻婆豆腐": 22.0, "黑椒牛柳": 46.0,
     "香煎三文鱼": 68.0, "红烧肉": 48.0, "水煮鱼": 58.0, "糖醋排骨": 38.0,
@@ -24,12 +31,16 @@ DEFAULT_MENU = {
 
 # === 初始化应用 ===
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-app = Flask(__name__, static_folder="web", static_url_path="")
-CORS(app)  # 允许跨域，方便开发
 
-# 确保数据目录存在
-if not DATA_DIR.exists():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+# 检查 web 目录是否存在，不存在则警告
+if not WEB_DIR.exists():
+    logging.error(f"严重错误: 找不到 web 文件夹! 请确保路径正确: {WEB_DIR}")
+else:
+    logging.info(f"Web 目录路径: {WEB_DIR}")
+
+# static_folder 使用绝对路径，彻底解决 404 问题
+app = Flask(__name__, static_folder=str(WEB_DIR), static_url_path="")
+CORS(app)
 
 store = MenuStore(MENU_FILE, DEFAULT_MENU)
 
@@ -37,16 +48,15 @@ store = MenuStore(MENU_FILE, DEFAULT_MENU)
 
 @app.route("/")
 def index():
+    # 尝试直接返回 index.html
     return app.send_static_file("index.html")
 
 @app.route("/api/menu", methods=["GET"])
 def get_menu():
-    """获取所有菜单"""
     return jsonify({"code": 200, "data": store.get_menu()})
 
 @app.route("/api/order", methods=["POST"])
 def place_order():
-    """提交订单"""
     data = request.json or {}
     items = data.get("items", [])
     
@@ -67,7 +77,6 @@ def place_order():
 
 @app.route("/api/admin/menu", methods=["POST"])
 def update_item():
-    """更新菜品信息（改名、改价、改图）"""
     data = request.json or {}
     name = data.get("name")
     image = data.get("image")
@@ -78,10 +87,6 @@ def update_item():
     store.upsert_item(name, image=image)
     return jsonify({"code": 200, "msg": "更新成功", "data": store.get_menu()})
 
-@app.route("/health")
-def health_check():
-    return jsonify({"status": "ok"})
-
 if __name__ == "__main__":
-    logging.info(f"Starting Neo Dining Server on {HOST}:{PORT}")
-    app.run(host=HOST, port=PORT)
+    logging.info(f"Starting Neo Dining Server on http://{HOST}:{PORT}")
+    app.run(host=HOST, port=PORT, debug=True)
