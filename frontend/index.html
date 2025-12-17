@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neo Dining</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+  </head>
+  <body>
+    <nav>
+      <div class="container nav-content">
+        <div class="brand">Neo Dining</div>
+        <input type="text" id="search-input" class="search-bar" placeholder="Search" />
+      </div>
+    </nav>
+
+    <main class="container">
+      <div id="loading" class="loading-spinner">Loading...</div>
+      <div id="menu-grid" class="grid"></div>
+    </main>
+
+    <div id="cart-bar" class="float-bar">
+      <div class="total-price" id="total-display">¥0.00</div>
+      <button id="checkout-btn" class="checkout-btn">Pay</button>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
