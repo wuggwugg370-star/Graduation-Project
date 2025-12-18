@@ -12,40 +12,40 @@ class MenuStore:
         self._load(default_menu)
 
     def _load(self, default_menu: Dict[str, Any]):
-        """加载数据，如果文件损坏则重置"""
+        """安全加载数据，如果文件损坏则重置为默认"""
         loaded = False
         if self._data_file.exists():
             try:
+                # 检查文件是否为空
+                if self._data_file.stat().st_size == 0:
+                    raise ValueError("File is empty")
+                
                 with self._data_file.open("r", encoding="utf-8") as f:
                     data = json.load(f)
                     if isinstance(data, dict):
                         self._menu = data
                         loaded = True
             except Exception as e:
-                print(f"[警告] 数据损坏，已重置: {e}")
+                print(f"[警告] 菜单数据文件损坏或为空，已重置: {e}")
         
         if not loaded:
             self._menu = default_menu.copy()
             self._save()
 
     def _save(self):
-        """
-        [关键改进] 原子写入：防止保存时程序崩溃导致数据丢失
-        1. 写入临时文件
-        2. 重命名覆盖原文件
-        """
+        """原子写入：防止断电或崩溃导致数据丢失"""
         temp_file = self._data_file.with_suffix(".tmp")
         try:
             with temp_file.open("w", encoding="utf-8") as f:
                 json.dump(self._menu, f, ensure_ascii=False, indent=2)
             
-            # 原子替换
+            # Windows 下 rename 无法覆盖，需先 replace
             if self._data_file.exists():
                 os.replace(str(temp_file), str(self._data_file))
             else:
                 os.rename(str(temp_file), str(self._data_file))
         except Exception as e:
-            print(f"[错误] 保存失败: {e}")
+            print(f"[错误] 保存菜单失败: {e}")
             if temp_file.exists():
                 os.remove(temp_file)
 
