@@ -15,7 +15,7 @@ export const submitOrder = (items) => request('/order', {
   body: JSON.stringify({ items })
 });
 
-// 管理员接口 (必须有这些，否则 main.js 会报错导致页面卡死)
+// 管理员接口 (关键！之前可能缺了这部分)
 export const adminLogin = (password) => request('/admin/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
