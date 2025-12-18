@@ -1,3 +1,10 @@
+// === 调试探针 ===
+console.log('🔥🔥🔥 新版代码已加载！Version 3.0 🔥🔥🔥');
+// ================
+
+import './styles/main.css';
+import { getMenu, submitOrder, adminLogin, saveItem } from './api.js';
+// ... (后面代码保持不变)
 import './styles/main.css';
 import { getMenu, submitOrder, adminLogin, saveItem } from './api.js';
 

@@ -1,42 +1,14 @@
-import { defineConfig } from 'vite';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// [关键修复] 手动定义 __filename 和 __dirname 以兼容 ES Module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { defineConfig } from 'vite'
 
 export default defineConfig({
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:5000',
-        changeOrigin: true,
-        secure: false
-      }
-    }
-  },
+  // 关键配置：把打包结果直接输出到后端的 static 目录
   build: {
     outDir: '../backend/static',
-    emptyOutDir: true,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    },
-    rollupOptions: {
-      output: {
-        entryFileNames: 'assets/js/[name]-[hash].js',
-        chunkFileNames: 'assets/js/[name]-[hash].js',
-        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
-      }
-    }
+    emptyOutDir: true, // 每次打包前清空旧文件，防止缓存
   },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src')
+  server: {
+    proxy: {
+      '/api': 'http://localhost:5000' // 开发环境代理
     }
   }
-});
+})
