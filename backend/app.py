@@ -1,96 +1,81 @@
 import logging
+import os
 from pathlib import Path
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from werkzeug.security import check_password_hash
-from models import db, User, Product, Order, OrderItem
+from menu_store import MenuStore
 
 # === 配置 ===
 BASE_DIR = Path(__file__).parent.resolve()
 STATIC_DIR = BASE_DIR / "static"
+DATA_DIR = BASE_DIR / "data"
+MENU_FILE = DATA_DIR / "menu_data.json"
 
-app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
+if not DATA_DIR.exists():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# 数据库配置: 用户名root, 密码123456, 端口3306, 库名neodining
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:123456@localhost:3306/neodining'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JWT_SECRET_KEY'] = 'my-graduation-secret' # 用于加密Token
+# 默认菜单数据
+DEFAULT_MENU = {
+    "宫保鸡丁": {"price": 28.0, "category": "中式经典", "image": "https://images.unsplash.com/photo-1525755662778-989d0524087e?auto=format&fit=crop&w=400&q=80"},
+    "澳洲M5牛排": {"price": 128.0, "category": "西式料理", "image": "https://images.unsplash.com/photo-1600891964092-4316c288032e?auto=format&fit=crop&w=400&q=80"},
+    "冰美式": {"price": 15.0, "category": "饮品甜点", "image": "https://images.unsplash.com/photo-1556484687-306361646342?auto=format&fit=crop&w=400&q=80"},
+}
 
-CORS(app)
-db.init_app(app)
-jwt = JWTManager(app)
-
+# === 初始化 ===
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
+CORS(app)
+store = MenuStore(MENU_FILE, DEFAULT_MENU)
 
-# === 路由接口 ===
-
+# === 路由 ===
 @app.route("/")
 def index():
     if (STATIC_DIR / "index.html").exists():
         return send_from_directory(STATIC_DIR, "index.html")
-    return "Backend is Running with MySQL!", 200
+    return "Backend running. Please build frontend.", 200
 
-# 1. 获取菜单 (从数据库查)
 @app.route("/api/menu", methods=["GET"])
 def get_menu():
-    products = Product.query.filter_by(is_available=True).all()
-    # 转换成前端需要的格式
-    data = {p.name: p.to_dict() for p in products}
-    return jsonify({"code": 200, "data": data})
+    return jsonify({"code": 200, "data": store.get_menu()})
 
-# 2. 提交订单 (写入数据库)
 @app.route("/api/order", methods=["POST"])
 def place_order():
     data = request.json or {}
-    item_names = data.get("items", [])
+    items = data.get("items", [])
+    if not items: return jsonify({"code": 400, "msg": "购物车为空"}), 400
     
-    if not item_names:
-        return jsonify({"code": 400, "msg": "购物车为空"}), 400
+    total, not_found, detail = store.calc_order(items)
+    if not_found: return jsonify({"code": 400, "msg": f"缺货: {', '.join(not_found)}"}), 400
 
-    # 统计数量
-    from collections import Counter
-    counts = Counter(item_names)
+    logging.info(f"Order: {items} | Total: {total}")
+    return jsonify({"code": 200, "msg": "下单成功", "data": {"total": total}})
 
-    try:
-        new_order = Order()
-        db.session.add(new_order)
-        db.session.flush() # 先生成订单ID
+# --- 管理员接口 ---
 
-        total_price = 0.0
-        for name, qty in counts.items():
-            product = Product.query.filter_by(name=name).first()
-            if product:
-                item_total = product.price * qty
-                total_price += item_total
-                # 添加详情
-                order_item = OrderItem(order_id=new_order.id, product_name=name, price=product.price, quantity=qty)
-                db.session.add(order_item)
+@app.route("/api/admin/login", methods=["POST"])
+def admin_login():
+    """简单的演示用登录接口"""
+    data = request.json or {}
+    password = data.get("password")
+    # 演示用密码：123456
+    if password == "123456":
+        return jsonify({"code": 200, "msg": "登录成功"})
+    return jsonify({"code": 401, "msg": "密码错误"}), 401
 
-        new_order.total_price = total_price
-        db.session.commit()
-        
-        logging.info(f"Order Created: {new_order.id} | Total: {total_price}")
-        return jsonify({"code": 200, "msg": "下单成功", "data": {"total": total_price}})
-    
-    except Exception as e:
-        db.session.rollback()
-        logging.error(e)
-        return jsonify({"code": 500, "msg": "服务器错误"}), 500
+@app.route("/api/admin/item", methods=["POST"])
+def save_item():
+    """添加或修改菜品"""
+    data = request.json or {}
+    name = data.get("name")
+    price = data.get("price")
+    category = data.get("category")
+    image = data.get("image")
 
-# 3. 管理员登录 (新增)
-@app.route("/api/auth/login", methods=["POST"])
-def login():
-    username = request.json.get("username")
-    password = request.json.get("password")
-    user = User.query.filter_by(username=username).first()
-    
-    # 验证密码
-    if user and check_password_hash(user.password_hash, password):
-        token = create_access_token(identity=username)
-        return jsonify({"code": 200, "token": token})
-    
-    return jsonify({"code": 401, "msg": "登录失败"}), 401
+    if not all([name, price, category]):
+        return jsonify({"code": 400, "msg": "信息不完整"}), 400
+
+    store.upsert_item(name, price, category, image)
+    return jsonify({"code": 200, "msg": "保存成功"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

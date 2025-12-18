@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Neo Dining Store</title>
+    <title>Neo Dining System</title>
   </head>
   <body>
     <nav>
@@ -12,8 +12,10 @@
         <div class="brand">Neo Dining</div>
         
         <div class="nav-actions">
+          <div class="admin-link" id="admin-login-btn">Admin</div>
+          
           <div class="search-trigger" id="search-trigger">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             <span>Search</span>
           </div>
           <div class="cart-icon-btn" id="cart-toggle-btn">
@@ -24,19 +26,24 @@
     </nav>
 
     <div class="container category-wrapper">
-      <div class="category-bar" id="category-bar">
-        </div>
+      <div class="category-bar" id="category-bar"></div>
     </div>
 
     <main class="container">
-      <div id="loading" class="loading-spinner">Loading Exquisite Menu...</div>
+      <div id="loading" class="loading-spinner">Loading Menu...</div>
+      
+      <div id="admin-toolbar" class="admin-toolbar" style="display: none;">
+        <span>🔧 Admin Mode Active</span>
+        <button id="add-item-btn" class="btn primary-btn">+ Add New Item</button>
+        <button id="logout-btn" class="btn text-btn">Exit</button>
+      </div>
+
       <div id="menu-grid" class="grid"></div>
     </main>
 
     <div id="search-overlay" class="search-overlay">
       <div class="search-content">
         <div class="search-input-wrapper">
-          <svg class="search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           <input type="text" id="global-search" placeholder="Search menu..." autocomplete="off">
           <button id="close-search" class="close-btn">Cancel</button>
         </div>
@@ -48,9 +55,7 @@
         <h2>Shopping Bag</h2>
         <button id="close-drawer" class="close-icon">×</button>
       </div>
-      <div id="cart-items" class="cart-items-container">
-        <div class="empty-cart-msg">Your bag is empty.</div>
-      </div>
+      <div id="cart-items" class="cart-items-container"></div>
       <div class="drawer-footer">
         <div class="drawer-total">
           <span>Total</span>
@@ -61,14 +66,41 @@
     </div>
     <div id="drawer-backdrop" class="drawer-backdrop"></div>
 
+    <div id="item-modal" class="modal">
+      <div class="modal-content">
+        <h2 id="modal-title">Add Item</h2>
+        <form id="item-form">
+          <div class="form-group">
+            <label>Dish Name</label>
+            <input type="text" id="input-name" required placeholder="e.g. Spicy Chicken">
+          </div>
+          <div class="form-group">
+            <label>Price (¥)</label>
+            <input type="number" id="input-price" step="0.1" required placeholder="28.0">
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <input type="text" id="input-category" required placeholder="e.g. Main Course" list="cat-suggestions">
+            <datalist id="cat-suggestions"></datalist>
+          </div>
+          <div class="form-group">
+            <label>Image URL</label>
+            <input type="url" id="input-image" placeholder="http://...">
+            <small>Use online image link (e.g. Unsplash)</small>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="modal-cancel">Cancel</button>
+            <button type="submit" class="btn primary-btn">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <div id="success-modal" class="success-modal">
       <div class="success-content">
-        <div class="checkmark-circle">
-          <div class="checkmark draw"></div>
-        </div>
+        <div class="checkmark-circle"><div class="checkmark draw"></div></div>
         <h2>Order Confirmed!</h2>
-        <p>Kitchen is preparing your delicious meal.</p>
-        <button id="success-close-btn" class="btn success-btn">Continue Shopping</button>
+        <button id="success-close-btn" class="btn success-btn">Close</button>
       </div>
     </div>
 

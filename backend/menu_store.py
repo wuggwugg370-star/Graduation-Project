@@ -13,58 +13,64 @@ class MenuStore:
 
     @staticmethod
     def _normalize_entry(value: Any) -> Dict[str, Any]:
-        """标准化数据结构，增加 category 字段，确保 image 为字符串"""
-        default_cat = "中式经典"
+        """标准化数据结构"""
+        default_cat = "其他"
         if isinstance(value, dict):
             return {
                 "price": float(value.get("price", 0.0)),
-                "image": value.get("image") or "",  # [修复] 防止 None 导致前端报错
+                "image": value.get("image", ""),
                 "category": value.get("category", default_cat)
             }
-        # 兼容旧格式
         return {"price": float(value), "image": "", "category": default_cat}
 
     def _load(self, default_menu: Dict[str, Any]):
         loaded_data = {}
-        file_exists = False
+        file_valid = False
+        
+        # 尝试读取现有数据
         if self._data_file.exists():
             try:
                 with self._data_file.open("r", encoding="utf-8") as f:
                     data = json.load(f)
                 if isinstance(data, dict):
                     loaded_data = {str(k): self._normalize_entry(v) for k, v in data.items()}
-                    file_exists = True
+                    file_valid = True
             except Exception:
-                pass
+                print("数据文件损坏或格式错误，将重置为默认菜单。")
 
         self._menu = loaded_data
-        has_new = False
+        
+        # 合并默认菜单（如果缺少默认菜品则补全）
+        has_changes = False
         for name, info in default_menu.items():
             if name not in self._menu:
                 self._menu[name] = self._normalize_entry(info)
-                has_new = True
+                has_changes = True
         
-        if has_new or not file_exists:
+        # 如果文件不存在或有更新，则保存
+        if has_changes or not file_valid:
             self._save()
 
     def _save(self):
         try:
             with self._data_file.open("w", encoding="utf-8") as f:
                 json.dump(self._menu, f, ensure_ascii=False, indent=2)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"保存菜单失败: {e}")
 
     def get_menu(self) -> Dict[str, Dict[str, Any]]:
         with self._lock:
-            return {name: dict(payload) for name, payload in self._menu.items()}
+            # 返回深拷贝，防止外部修改影响内部
+            return {k: v.copy() for k, v in self._menu.items()}
 
-    def upsert_item(self, name: str, price: float | None = None, image: str | None = None, category: str | None = None):
+    def upsert_item(self, name: str, price: float, category: str, image: str):
+        """添加或更新菜品"""
         with self._lock:
-            record = self._menu.get(name, {"price": 0.0, "image": "", "category": "其他"})
-            if price is not None: record["price"] = float(price)
-            if image is not None: record["image"] = image
-            if category is not None: record["category"] = category
-            self._menu[name] = record
+            self._menu[name] = {
+                "price": float(price),
+                "category": category,
+                "image": image
+            }
             self._save()
 
     def calc_order(self, items: List[str]) -> Tuple[float, List[str], List[Dict]]:

@@ -1,107 +1,71 @@
 import './styles/main.css';
-import { getMenu, submitOrder, updateImage } from './api.js';
+import { getMenu, submitOrder, adminLogin, saveItem } from './api.js';
 
 const state = {
   menu: {},
-  cart: {}, // 格式: { "菜名": 数量 }
+  cart: {}, 
   activeCategory: 'All',
-  categories: new Set(['All']) // 确保 All 在最前
+  categories: new Set(['All']),
+  isAdmin: false // 关键状态：是否为管理员
 };
 
 // === 初始化 ===
 async function init() {
+  await loadData();
+  setupEventListeners();
+  checkAdminSession();
+}
+
+async function loadData() {
   const loading = document.getElementById('loading');
   try {
     state.menu = await getMenu();
-    
-    // 提取分类
+    state.categories = new Set(['All']);
     Object.values(state.menu).forEach(item => {
       if (item.category) state.categories.add(item.category);
     });
     
     renderCategories();
     renderMenu();
-    updateCartUI(); // 初始化空购物车状态
+    updateCartUI();
   } catch (err) {
     console.error(err);
-    if(loading) loading.innerText = 'Service Unavailable. Please check backend.';
+    if(loading) loading.innerText = 'Service Unavailable.';
   } finally {
     if(loading) loading.style.display = 'none';
   }
-  
-  setupEventListeners();
 }
 
-function setupEventListeners() {
-  // 1. 全局搜索
-  const searchOverlay = document.getElementById('search-overlay');
-  const searchInput = document.getElementById('global-search');
-  
-  document.getElementById('search-trigger').onclick = () => {
-    searchOverlay.classList.add('active');
-    setTimeout(() => searchInput.focus(), 100);
-  };
-  
-  document.getElementById('close-search').onclick = () => {
-    searchOverlay.classList.remove('active');
-    searchInput.value = ''; // 关闭清空
-    filterMenu('', state.activeCategory); // 恢复当前分类显示
-  };
-
-  searchInput.addEventListener('input', (e) => {
-    // 搜索时忽略分类限制，改为在所有菜品中搜
-    filterMenu(e.target.value, 'All');
-  });
-
-  // 2. 购物车抽屉
-  const drawer = document.getElementById('cart-drawer');
-  const backdrop = document.getElementById('drawer-backdrop');
-  
-  function toggleDrawer(open) {
-    if (open) {
-      drawer.classList.add('open');
-      backdrop.classList.add('open');
-    } else {
-      drawer.classList.remove('open');
-      backdrop.classList.remove('open');
-    }
-  }
-
-  document.getElementById('cart-toggle-btn').onclick = () => toggleDrawer(true);
-  document.getElementById('close-drawer').onclick = () => toggleDrawer(false);
-  backdrop.onclick = () => toggleDrawer(false);
-  
-  // 3. 结账与弹窗
-  document.getElementById('checkout-btn').onclick = handleCheckout;
-  document.getElementById('success-close-btn').onclick = () => {
-    document.getElementById('success-modal').classList.remove('show');
-    toggleDrawer(false);
-  };
-}
-
-// === 渲染分类栏 ===
+// === 渲染逻辑 ===
 function renderCategories() {
   const bar = document.getElementById('category-bar');
+  const datalist = document.getElementById('cat-suggestions');
+  
   bar.innerHTML = '';
+  datalist.innerHTML = ''; // 填充输入框的自动补全
 
   state.categories.forEach(cat => {
+    // 渲染顶部按钮
     const btn = document.createElement('button');
-    btn.className = `cat-btn ${cat === 'All' ? 'active' : ''}`;
+    btn.className = `cat-btn ${cat === state.activeCategory ? 'active' : ''}`;
     btn.innerText = cat;
     btn.onclick = () => {
-      // 切换分类样式
       document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      
       state.activeCategory = cat;
-      document.getElementById('global-search').value = ''; // 切换分类时清空搜索
       filterMenu('', cat);
     };
     bar.appendChild(btn);
+
+    // 填充 datalist
+    if (cat !== 'All') {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      datalist.appendChild(opt);
+    }
   });
 }
 
-// === 渲染菜单网格 ===
 function renderMenu() {
   const grid = document.getElementById('menu-grid');
   grid.innerHTML = '';
@@ -111,19 +75,18 @@ function renderMenu() {
     card.className = 'card';
     card.dataset.name = name;
     card.dataset.category = info.category || '其他';
-    card.style.transitionDelay = `${idx * 30}ms`; // 瀑布流动画
+    card.style.transitionDelay = `${Math.min(idx * 30, 300)}ms`;
 
-    const imgUrl = info.image;
-    const price = info.price;
+    const imgUrl = info.image || 'https://via.placeholder.com/400x300?text=No+Image';
 
     card.innerHTML = `
-      <div class="card-img" style="${imgUrl ? `background-image: url('${imgUrl}')` : ''}">
-        <div class="edit-hint" title="Admin: Update Image">Edit Photo</div>
+      <div class="card-img" style="background-image: url('${imgUrl}')">
+        ${state.isAdmin ? `<button class="edit-btn">✏️ Edit</button>` : ''}
       </div>
       <div class="card-content">
         <div class="card-tag">${info.category}</div>
         <div class="card-title">${name}</div>
-        <div class="card-price">¥${price.toFixed(2)}</div>
+        <div class="card-price">¥${info.price.toFixed(2)}</div>
         <div class="action-row">
           <button class="btn add-btn">Add to Bag</button>
         </div>
@@ -132,34 +95,157 @@ function renderMenu() {
 
     // 绑定事件
     card.querySelector('.add-btn').onclick = () => addToCart(name);
-    
-    // 管理员换图功能
-    card.querySelector('.edit-hint').onclick = (e) => {
-      e.stopPropagation();
-      handleImageUpdate(name);
-    };
+
+    // 管理员编辑事件
+    if (state.isAdmin) {
+      const editBtn = card.querySelector('.edit-btn');
+      editBtn.onclick = (e) => {
+        e.stopPropagation();
+        openItemModal(name, info);
+      };
+    }
 
     grid.appendChild(card);
     requestAnimationFrame(() => card.classList.add('visible'));
   });
 }
 
-// === 筛选逻辑 ===
+// === 管理员逻辑 ===
+function checkAdminSession() {
+  // 简单的 sessionStorage 检查，保持刷新后状态
+  if (sessionStorage.getItem('neo_admin') === 'true') {
+    enableAdminMode();
+  }
+}
+
+async function handleAdminLogin() {
+  const pwd = prompt("Enter Admin Password (demo: admin123):");
+  if (!pwd) return;
+
+  try {
+    await adminLogin(pwd);
+    sessionStorage.setItem('neo_admin', 'true');
+    enableAdminMode();
+    alert("Welcome Back, Admin!");
+  } catch (e) {
+    alert("Access Denied.");
+  }
+}
+
+function enableAdminMode() {
+  state.isAdmin = true;
+  document.getElementById('admin-toolbar').style.display = 'flex';
+  document.getElementById('admin-login-btn').style.display = 'none';
+  renderMenu(); // 重新渲染以显示编辑按钮
+}
+
+function handleLogout() {
+  state.isAdmin = false;
+  sessionStorage.removeItem('neo_admin');
+  document.getElementById('admin-toolbar').style.display = 'none';
+  document.getElementById('admin-login-btn').style.display = 'block';
+  renderMenu();
+}
+
+// === 添加/编辑 模态框逻辑 ===
+const modal = document.getElementById('item-modal');
+const form = document.getElementById('item-form');
+
+function openItemModal(name = null, info = null) {
+  modal.classList.add('show');
+  if (name && info) {
+    // 编辑模式
+    document.getElementById('modal-title').innerText = "Edit Item";
+    document.getElementById('input-name').value = name;
+    document.getElementById('input-name').readOnly = true; // 名字作为ID不可改
+    document.getElementById('input-price').value = info.price;
+    document.getElementById('input-category').value = info.category;
+    document.getElementById('input-image').value = info.image || '';
+  } else {
+    // 添加模式
+    document.getElementById('modal-title').innerText = "Add New Item";
+    form.reset();
+    document.getElementById('input-name').readOnly = false;
+  }
+}
+
+function closeItemModal() {
+  modal.classList.remove('show');
+}
+
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  const data = {
+    name: document.getElementById('input-name').value,
+    price: parseFloat(document.getElementById('input-price').value),
+    category: document.getElementById('input-category').value,
+    image: document.getElementById('input-image').value
+  };
+
+  try {
+    await saveItem(data);
+    closeItemModal();
+    loadData(); // 重新加载数据
+  } catch (err) {
+    alert("Failed to save: " + err.message);
+  }
+};
+
+// === 通用逻辑 (购物车、搜索等) ===
+// ... (保留之前的购物车 addToCart, updateCartUI, toggleDrawer 等逻辑)
+// 此处为了篇幅省略重复代码，请确保保留之前 main.js 中的以下函数：
+// setupEventListeners (需更新 Admin 按钮绑定), filterMenu, addToCart, updateCartUI, handleCheckout
+
+function setupEventListeners() {
+  // Admin 绑定
+  document.getElementById('admin-login-btn').onclick = handleAdminLogin;
+  document.getElementById('logout-btn').onclick = handleLogout;
+  document.getElementById('add-item-btn').onclick = () => openItemModal();
+  document.getElementById('modal-cancel').onclick = closeItemModal;
+
+  // 搜索
+  const searchOverlay = document.getElementById('search-overlay');
+  const searchInput = document.getElementById('global-search');
+  document.getElementById('search-trigger').onclick = () => {
+    searchOverlay.classList.add('active');
+    setTimeout(() => searchInput.focus(), 100);
+  };
+  document.getElementById('close-search').onclick = () => {
+    searchOverlay.classList.remove('active');
+    searchInput.value = '';
+    filterMenu('', state.activeCategory);
+  };
+  searchInput.addEventListener('input', (e) => filterMenu(e.target.value, 'All'));
+
+  // 购物车
+  const drawer = document.getElementById('cart-drawer');
+  const backdrop = document.getElementById('drawer-backdrop');
+  const toggleDrawer = (open) => {
+    if (open) { drawer.classList.add('open'); backdrop.classList.add('open'); }
+    else { drawer.classList.remove('open'); backdrop.classList.remove('open'); }
+  };
+  document.getElementById('cart-toggle-btn').onclick = () => toggleDrawer(true);
+  document.getElementById('close-drawer').onclick = () => toggleDrawer(false);
+  backdrop.onclick = () => toggleDrawer(false);
+
+  // 结账
+  document.getElementById('checkout-btn').onclick = handleCheckout;
+  document.getElementById('success-close-btn').onclick = () => {
+    document.getElementById('success-modal').classList.remove('show');
+    toggleDrawer(false);
+  };
+}
+
 function filterMenu(keyword, category) {
   const k = keyword.toLowerCase().trim();
   const cards = document.querySelectorAll('.card');
-  
   cards.forEach(card => {
     const name = card.dataset.name.toLowerCase();
     const cat = card.dataset.category;
-    
-    // 逻辑：如果分类是All，则只看关键词；如果有具体分类，则需同时满足分类和关键词
     const matchCat = category === 'All' || cat === category;
     const matchKey = name.includes(k);
-
     if (matchCat && matchKey) {
       card.style.display = 'flex';
-      // 重新触发动画
       requestAnimationFrame(() => card.classList.add('visible'));
     } else {
       card.style.display = 'none';
@@ -168,12 +254,9 @@ function filterMenu(keyword, category) {
   });
 }
 
-// === 购物车逻辑 ===
 function addToCart(name) {
   state.cart[name] = (state.cart[name] || 0) + 1;
   updateCartUI();
-  
-  // 购物车图标跳动反馈
   const btn = document.getElementById('cart-toggle-btn');
   btn.style.transform = 'scale(1.3)';
   setTimeout(() => btn.style.transform = 'scale(1)', 200);
@@ -189,19 +272,17 @@ function updateCartUI() {
   let total = 0;
   let count = 0;
 
-  // 遍历购物车
   Object.entries(state.cart).forEach(([name, qty]) => {
     const info = state.menu[name];
-    if (!info) return; // 防止旧数据错误
+    if (!info) return;
     
-    const itemTotal = info.price * qty;
-    total += itemTotal;
+    total += info.price * qty;
     count += qty;
 
     const div = document.createElement('div');
     div.className = 'cart-item';
     div.innerHTML = `
-      <img src="${info.image || 'https://via.placeholder.com/100?text=Food'}" />
+      <img src="${info.image || 'https://via.placeholder.com/100'}" />
       <div class="cart-item-info">
         <div class="cart-item-title">${name}</div>
         <div class="cart-item-price">¥${info.price.toFixed(2)}</div>
@@ -212,22 +293,15 @@ function updateCartUI() {
         </div>
       </div>
     `;
-
-    // 绑定加减按钮
     div.querySelector('.minus').onclick = () => {
       state.cart[name]--;
       if (state.cart[name] <= 0) delete state.cart[name];
       updateCartUI();
     };
-    div.querySelector('.plus').onclick = () => {
-      state.cart[name]++;
-      updateCartUI();
-    };
-
+    div.querySelector('.plus').onclick = () => { state.cart[name]++; updateCartUI(); };
     container.appendChild(div);
   });
 
-  // 更新总状态
   if (count === 0) {
     container.innerHTML = '<div class="empty-cart-msg">Your bag is empty.</div>';
     badge.classList.remove('show');
@@ -237,43 +311,20 @@ function updateCartUI() {
     badge.classList.add('show');
     checkoutBtn.disabled = false;
   }
-  
   totalDisplay.innerText = `¥${total.toFixed(2)}`;
 }
 
-// === 管理员功能：更新图片 ===
-async function handleImageUpdate(name) {
-  const url = prompt(`Paste new image URL for "${name}":`);
-  if (url && url.startsWith('http')) {
-    try {
-      await updateImage(name, url);
-      // 乐观更新
-      state.menu[name].image = url;
-      const cardImg = document.querySelector(`.card[data-name="${name}"] .card-img`);
-      if (cardImg) {
-        // [优化] 添加时间戳，强制刷新图片缓存（防止同名图片不更新）
-        cardImg.style.backgroundImage = `url('${url}?t=${new Date().getTime()}')`;
-      }
-    } catch (e) {
-      alert('Update failed: ' + e.message);
-    }
-  }
-}
-
-// === 结账 ===
 async function handleCheckout() {
   const btn = document.getElementById('checkout-btn');
   btn.innerText = 'Processing...';
   btn.disabled = true;
-
   const items = [];
   Object.entries(state.cart).forEach(([name, qty]) => {
     for (let i = 0; i < qty; i++) items.push(name);
   });
 
   try {
-    const res = await submitOrder(items);
-    // 成功后清空购物车并显示成功弹窗
+    await submitOrder(items);
     state.cart = {};
     updateCartUI();
     document.getElementById('success-modal').classList.add('show');
