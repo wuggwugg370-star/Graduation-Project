@@ -1,5 +1,10 @@
 import { defineConfig } from 'vite';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// [关键修复] 手动定义 __filename 和 __dirname 以兼容 ES Module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   server: {
@@ -12,7 +17,6 @@ export default defineConfig({
     }
   },
   build: {
-    // 构建输出到后端的 static 目录，方便 Docker 统一打包
     outDir: '../backend/static',
     emptyOutDir: true,
     minify: 'terser',
