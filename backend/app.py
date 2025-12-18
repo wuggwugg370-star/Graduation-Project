@@ -22,6 +22,7 @@ DEFAULT_MENU = {
 
 # === 初始化 ===
 logging.basicConfig(level=logging.INFO)
+# 注意：static_folder 指向了前端 build 生成的目录
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
 CORS(app)
 store = MenuStore(MENU_FILE, DEFAULT_MENU)
@@ -29,6 +30,7 @@ store = MenuStore(MENU_FILE, DEFAULT_MENU)
 # === 路由 ===
 @app.route("/")
 def index():
+    # 如果前端构建成功，直接返回 index.html
     if (STATIC_DIR / "index.html").exists():
         return send_from_directory(STATIC_DIR, "index.html")
     return "Backend running. Please run 'npm run build' in frontend.", 200
@@ -53,14 +55,12 @@ def place_order():
 @app.route("/api/admin/login", methods=["POST"])
 def admin_login():
     data = request.json or {}
-    # 简单写死密码用于毕设演示
     if data.get("password") == "admin123":
         return jsonify({"code": 200, "msg": "登录成功"})
     return jsonify({"code": 401, "msg": "密码错误"}), 401
 
 @app.route("/api/admin/item", methods=["POST"])
 def save_item():
-    """新建或更新菜品"""
     data = request.json or {}
     name = data.get("name")
     
@@ -69,8 +69,8 @@ def save_item():
 
     store.upsert_item(
         name=name,
-        price=data.get("price"),     # 现在可以更新价格了
-        category=data.get("category"), # 现在可以更新分类了
+        price=data.get("price"),
+        category=data.get("category"),
         image=data.get("image")
     )
     return jsonify({"code": 200, "msg": "保存成功"})
