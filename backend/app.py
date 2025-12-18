@@ -7,7 +7,6 @@ from menu_store import MenuStore
 
 # === 配置 ===
 BASE_DIR = Path(__file__).parent.resolve()
-# 生产环境：前端构建产物会放在 ./static 目录下
 STATIC_DIR = BASE_DIR / "static"
 DATA_DIR = BASE_DIR / "data"
 MENU_FILE = DATA_DIR / "menu_data.json"
@@ -15,9 +14,30 @@ MENU_FILE = DATA_DIR / "menu_data.json"
 if not DATA_DIR.exists():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+# [修改] 丰富默认菜单，带分类
 DEFAULT_MENU = {
-    "宫保鸡丁": 28.0, "鱼香肉丝": 24.0, "麻婆豆腐": 22.0, "黑椒牛柳": 46.0,
-    "米饭": 3.0, "酸奶": 15.0
+    # 中式经典
+    "宫保鸡丁": {"price": 28.0, "category": "中式经典"},
+    "鱼香肉丝": {"price": 24.0, "category": "中式经典"},
+    "麻婆豆腐": {"price": 22.0, "category": "中式经典"},
+    "米饭": {"price": 3.0, "category": "中式经典"},
+    
+    # 西式料理
+    "澳洲M5牛排": {"price": 128.0, "category": "西式料理"},
+    "黑松露意面": {"price": 58.0, "category": "西式料理"},
+    "凯撒沙拉": {"price": 32.0, "category": "西式料理"},
+    "奶油蘑菇汤": {"price": 28.0, "category": "西式料理"},
+
+    # 东南亚风味
+    "冬阴功汤": {"price": 45.0, "category": "东南亚风味"},
+    "泰式咖喱蟹": {"price": 168.0, "category": "东南亚风味"},
+    "海南鸡饭": {"price": 35.0, "category": "东南亚风味"},
+    "越式春卷": {"price": 26.0, "category": "东南亚风味"},
+
+    # 饮品甜点
+    "冰美式": {"price": 15.0, "category": "饮品甜点"},
+    "提拉米苏": {"price": 25.0, "category": "饮品甜点"},
+    "手作酸奶": {"price": 18.0, "category": "饮品甜点"}
 }
 
 # === 初始化 ===
@@ -29,7 +49,6 @@ store = MenuStore(MENU_FILE, DEFAULT_MENU)
 # === 路由 ===
 @app.route("/")
 def index():
-    # 生产环境返回 index.html
     if (STATIC_DIR / "index.html").exists():
         return send_from_directory(STATIC_DIR, "index.html")
     return "Backend is running! (Frontend not built yet)", 200
@@ -53,6 +72,7 @@ def place_order():
 @app.route("/api/admin/menu", methods=["POST"])
 def update_item():
     data = request.json or {}
+    # 支持更新图片
     store.upsert_item(data.get("name"), image=data.get("image"))
     return jsonify({"code": 200, "msg": "更新成功"})
 

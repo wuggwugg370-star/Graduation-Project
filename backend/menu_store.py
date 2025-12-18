@@ -5,7 +5,7 @@ from threading import Lock
 from typing import Dict, List, Tuple, Any
 
 class MenuStore:
-    def __init__(self, data_file: Path, default_menu: Dict[str, float]):
+    def __init__(self, data_file: Path, default_menu: Dict[str, Any]):
         self._data_file = data_file
         self._lock = Lock()
         self._menu: Dict[str, Dict[str, Any]] = {}
@@ -13,11 +13,18 @@ class MenuStore:
 
     @staticmethod
     def _normalize_entry(value: Any) -> Dict[str, Any]:
+        """标准化数据结构，增加 category 字段"""
+        default_cat = "中式经典"
         if isinstance(value, dict):
-            return {"price": float(value.get("price", 0.0)), "image": value.get("image")}
-        return {"price": float(value), "image": None}
+            return {
+                "price": float(value.get("price", 0.0)),
+                "image": value.get("image"),
+                "category": value.get("category", default_cat)
+            }
+        # 兼容旧格式（只传价格的情况）
+        return {"price": float(value), "image": None, "category": default_cat}
 
-    def _load(self, default_menu: Dict[str, float]):
+    def _load(self, default_menu: Dict[str, Any]):
         loaded_data = {}
         file_exists = False
         if self._data_file.exists():
@@ -32,9 +39,9 @@ class MenuStore:
 
         self._menu = loaded_data
         has_new = False
-        for name, price in default_menu.items():
+        for name, info in default_menu.items():
             if name not in self._menu:
-                self._menu[name] = self._normalize_entry(price)
+                self._menu[name] = self._normalize_entry(info)
                 has_new = True
         
         if has_new or not file_exists:
@@ -51,11 +58,12 @@ class MenuStore:
         with self._lock:
             return {name: dict(payload) for name, payload in self._menu.items()}
 
-    def upsert_item(self, name: str, price: float | None = None, image: str | None = None):
+    def upsert_item(self, name: str, price: float | None = None, image: str | None = None, category: str | None = None):
         with self._lock:
-            record = self._menu.get(name, {"price": 0.0, "image": None})
+            record = self._menu.get(name, {"price": 0.0, "image": None, "category": "其他"})
             if price is not None: record["price"] = float(price)
             if image is not None: record["image"] = image
+            if category is not None: record["category"] = category
             self._menu[name] = record
             self._save()
 
