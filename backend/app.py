@@ -14,7 +14,7 @@ MENU_FILE = DATA_DIR / "menu_data.json"
 if not DATA_DIR.exists():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# [修改] 丰富默认菜单，带分类
+# [新增] 完整分类菜单
 DEFAULT_MENU = {
     # 中式经典
     "宫保鸡丁": {"price": 28.0, "category": "中式经典"},
@@ -72,8 +72,13 @@ def place_order():
 @app.route("/api/admin/menu", methods=["POST"])
 def update_item():
     data = request.json or {}
-    # 支持更新图片
-    store.upsert_item(data.get("name"), image=data.get("image"))
+    # [优化] 透传所有字段，允许修改价格、图片和分类
+    store.upsert_item(
+        data.get("name"), 
+        price=data.get("price"),
+        image=data.get("image"),
+        category=data.get("category")
+    )
     return jsonify({"code": 200, "msg": "更新成功"})
 
 if __name__ == "__main__":

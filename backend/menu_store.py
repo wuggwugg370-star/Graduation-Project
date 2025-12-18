@@ -13,16 +13,16 @@ class MenuStore:
 
     @staticmethod
     def _normalize_entry(value: Any) -> Dict[str, Any]:
-        """标准化数据结构，增加 category 字段"""
+        """标准化数据结构，增加 category 字段，确保 image 为字符串"""
         default_cat = "中式经典"
         if isinstance(value, dict):
             return {
                 "price": float(value.get("price", 0.0)),
-                "image": value.get("image"),
+                "image": value.get("image") or "",  # [修复] 防止 None 导致前端报错
                 "category": value.get("category", default_cat)
             }
-        # 兼容旧格式（只传价格的情况）
-        return {"price": float(value), "image": None, "category": default_cat}
+        # 兼容旧格式
+        return {"price": float(value), "image": "", "category": default_cat}
 
     def _load(self, default_menu: Dict[str, Any]):
         loaded_data = {}
@@ -60,7 +60,7 @@ class MenuStore:
 
     def upsert_item(self, name: str, price: float | None = None, image: str | None = None, category: str | None = None):
         with self._lock:
-            record = self._menu.get(name, {"price": 0.0, "image": None, "category": "其他"})
+            record = self._menu.get(name, {"price": 0.0, "image": "", "category": "其他"})
             if price is not None: record["price"] = float(price)
             if image is not None: record["image"] = image
             if category is not None: record["category"] = category

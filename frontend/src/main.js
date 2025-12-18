@@ -250,7 +250,10 @@ async function handleImageUpdate(name) {
       // 乐观更新
       state.menu[name].image = url;
       const cardImg = document.querySelector(`.card[data-name="${name}"] .card-img`);
-      if (cardImg) cardImg.style.backgroundImage = `url('${url}')`;
+      if (cardImg) {
+        // [优化] 添加时间戳，强制刷新图片缓存（防止同名图片不更新）
+        cardImg.style.backgroundImage = `url('${url}?t=${new Date().getTime()}')`;
+      }
     } catch (e) {
       alert('Update failed: ' + e.message);
     }
