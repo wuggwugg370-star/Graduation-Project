@@ -1,6 +1,5 @@
 const API_BASE = '/api';
 
-// 通用请求处理
 async function request(endpoint, options = {}) {
   const res = await fetch(`${API_BASE}${endpoint}`, options);
   const json = await res.json();
@@ -8,16 +7,15 @@ async function request(endpoint, options = {}) {
   return json.data || json;
 }
 
-// === 核心接口 ===
+// 核心功能接口
 export const getMenu = () => request('/menu');
-
 export const submitOrder = (items) => request('/order', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ items })
 });
 
-// === 管理员接口 (你之前缺少的！) ===
+// 管理员接口 (必须有这些，否则 main.js 会报错导致页面卡死)
 export const adminLogin = (password) => request('/admin/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
