@@ -13,24 +13,26 @@ MENU_FILE = DATA_DIR / "menu_data.json"
 if not DATA_DIR.exists():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# 默认菜单
+# 默认菜单 (必须确保这些数据能被加载)
 DEFAULT_MENU = {
-    "宫保鸡丁": {"price": 28.0, "category": "中式经典"},
-    "澳洲M5牛排": {"price": 128.0, "category": "西式料理"},
-    "冰美式": {"price": 15.0, "category": "饮品甜点"}
+    "宫保鸡丁": {"price": 28.0, "category": "中式经典", "image": ""},
+    "澳洲M5牛排": {"price": 128.0, "category": "西式料理", "image": ""},
+    "冰美式": {"price": 15.0, "category": "饮品甜点", "image": ""}
 }
 
 # === 初始化 ===
 logging.basicConfig(level=logging.INFO)
-# 注意：static_folder 指向了前端 build 生成的目录
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
+
+# === 关键修改点：允许 JSON 返回中文 ===
+app.config['JSON_AS_ASCII'] = False 
+
 CORS(app)
 store = MenuStore(MENU_FILE, DEFAULT_MENU)
 
 # === 路由 ===
 @app.route("/")
 def index():
-    # 如果前端构建成功，直接返回 index.html
     if (STATIC_DIR / "index.html").exists():
         return send_from_directory(STATIC_DIR, "index.html")
     return "Backend running. Please run 'npm run build' in frontend.", 200

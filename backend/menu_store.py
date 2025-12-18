@@ -12,40 +12,43 @@ class MenuStore:
         self._load(default_menu)
 
     def _load(self, default_menu: Dict[str, Any]):
-        """安全加载数据，如果文件损坏则重置为默认"""
+        """加载数据，如果文件损坏或内容为空，则重置为默认"""
         loaded = False
         if self._data_file.exists():
             try:
-                # 检查文件是否为空
+                # 检查文件大小
                 if self._data_file.stat().st_size == 0:
-                    raise ValueError("File is empty")
+                    raise ValueError("File is 0 bytes")
                 
                 with self._data_file.open("r", encoding="utf-8") as f:
                     data = json.load(f)
-                    if isinstance(data, dict):
+                    # === 关键修改点 ===
+                    # 只有当 data 是字典 且 不为空 时，才算加载成功
+                    if isinstance(data, dict) and data:  
                         self._menu = data
                         loaded = True
+                    else:
+                        print("[提示] 检测到菜单数据为空，将恢复默认菜单")
             except Exception as e:
-                print(f"[警告] 菜单数据文件损坏或为空，已重置: {e}")
+                print(f"[警告] 数据加载异常，已重置: {e}")
         
         if not loaded:
             self._menu = default_menu.copy()
             self._save()
 
     def _save(self):
-        """原子写入：防止断电或崩溃导致数据丢失"""
+        """原子写入：防止数据丢失"""
         temp_file = self._data_file.with_suffix(".tmp")
         try:
             with temp_file.open("w", encoding="utf-8") as f:
                 json.dump(self._menu, f, ensure_ascii=False, indent=2)
             
-            # Windows 下 rename 无法覆盖，需先 replace
             if self._data_file.exists():
                 os.replace(str(temp_file), str(self._data_file))
             else:
                 os.rename(str(temp_file), str(self._data_file))
         except Exception as e:
-            print(f"[错误] 保存菜单失败: {e}")
+            print(f"[错误] 保存失败: {e}")
             if temp_file.exists():
                 os.remove(temp_file)
 
@@ -60,9 +63,12 @@ class MenuStore:
             except ValueError:
                 p = 0.0
             
+            # 如果没有分类，给一个默认值
+            cat = category.strip() if category else "其他"
+            
             self._menu[name] = {
                 "price": p,
-                "category": category,
+                "category": cat,
                 "image": image
             }
             self._save()
