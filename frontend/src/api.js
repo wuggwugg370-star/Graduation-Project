@@ -15,6 +15,10 @@ export const submitOrder = (items) => request('/order', {
   body: JSON.stringify({ items })
 });
 
+export const getOrder = (orderId) => request(`/order/${orderId}`);
+
+export const getOrders = () => request('/orders');
+
 // 管理员接口 (关键！之前可能缺了这部分)
 export const adminLogin = (password) => request('/admin/login', {
   method: 'POST',

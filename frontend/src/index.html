@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neo Dining - 新派餐厅</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- 背景效果 -->
+    <div class="background-effects">
+        <div class="glass-shape shape-1"></div>
+        <div class="glass-shape shape-2"></div>
+        <div class="glass-shape shape-3"></div>
+    </div>
+
+    <div class="container">
+        <!-- 顶部导航栏 -->
+        <header class="header glass-effect">
+            <div class="logo">Neo Dining</div>
+            
+            <div class="search-box glass-effect">
+                <input type="text" id="searchInput" placeholder="搜索菜品...">
+                <button id="searchBtn"><i class="fas fa-search"></i></button>
+            </div>
+            
+            <div class="header-right">
+                <button id="adminLoginBtn" class="admin-btn glass-effect">Admin Login</button>
+                <button id="cartBtn" class="cart-btn glass-effect">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span id="cartCount" class="cart-count">0</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 分类标签 -->
+        <div class="category-tabs glass-effect">
+            <button class="tab-btn active" data-category="all">All</button>
+            <button class="tab-btn" data-category="东南亚风味">东南亚风味</button>
+            <button class="tab-btn" data-category="饮品甜点">饮品甜点</button>
+            <button class="tab-btn" data-category="西式料理">西式料理</button>
+            <button class="tab-btn" data-category="中式经典">中式经典</button>
+        </div>
+
+        <!-- 菜品展示区域 -->
+        <main class="menu-container">
+            <div id="menuGrid" class="menu-grid">
+                <!-- 菜品会通过JavaScript动态生成 -->
+            </div>
+        </main>
+
+        <!-- 购物车弹窗 -->
+        <div id="cartModal" class="modal glass-effect">
+            <div class="modal-content glass-effect">
+                <div class="modal-header">
+                    <h2>购物车</h2>
+                    <button class="close-btn" id="closeCartModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="cartItems" class="cart-items">
+                        <!-- 购物车项会通过JavaScript动态生成 -->
+                    </div>
+                    <div class="cart-total">
+                        <span>总计:</span>
+                        <span id="cartTotal">¥0.00</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="clearCartBtn">清空购物车</button>
+                    <button class="btn btn-primary" id="submitOrderBtn">提交订单</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 管理员登录弹窗 -->
+        <div id="adminLoginModal" class="modal glass-effect">
+            <div class="modal-content glass-effect">
+                <div class="modal-header">
+                    <h2>管理员登录</h2>
+                    <button class="close-btn" id="closeAdminLoginModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="adminLoginForm">
+                        <div class="form-group">
+                            <label for="adminPassword">密码:</label>
+                            <input type="password" id="adminPassword" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">登录</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加菜品弹窗 -->
+        <div id="addItemModal" class="modal glass-effect">
+            <div class="modal-content glass-effect">
+                <div class="modal-header">
+                    <h2>添加菜品</h2>
+                    <button class="close-btn" id="closeAddItemModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="addItemForm">
+                        <div class="form-group">
+                            <label for="itemName">菜品名称:</label>
+                            <input type="text" id="itemName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="itemCategory">分类:</label>
+                            <select id="itemCategory">
+                                <option value="东南亚风味">东南亚风味</option>
+                                <option value="饮品甜点">饮品甜点</option>
+                                <option value="西式料理">西式料理</option>
+                                <option value="中式经典">中式经典</option>
+                                <option value="未分类">未分类</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="itemPrice">价格:</label>
+                            <input type="number" id="itemPrice" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="itemImage">图片URL:</label>
+                            <input type="text" id="itemImage">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">保存</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 订单成功弹窗 -->
+        <div id="orderSuccessModal" class="modal glass-effect">
+            <div class="modal-content glass-effect">
+                <div class="modal-header">
+                    <h2>订单提交成功</h2>
+                    <button class="close-btn" id="closeOrderSuccessModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="order-success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div id="orderDetails" class="order-details">
+                        <!-- 订单详情会通过JavaScript动态生成 -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="continueShoppingBtn">继续购物</button>
+                    <button class="btn btn-primary" id="viewHistoryBtn">查看历史订单</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 订单历史弹窗 -->
+        <div id="orderHistoryModal" class="modal glass-effect">
+            <div class="modal-content glass-effect">
+                <div class="modal-header">
+                    <h2>订单历史</h2>
+                    <button class="close-btn" id="closeOrderHistoryModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="orderHistoryList" class="order-history-list">
+                        <!-- 订单历史会通过JavaScript动态生成 -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="closeHistoryBtn">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+</body>
+</html>

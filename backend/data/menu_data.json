@@ -1,17 +1,77 @@
 {
-  "宫保鸡丁": {
-    "price": 28.0,
-    "category": "中式经典",
-    "image": ""
-  },
-  "澳洲M5牛排": {
-    "price": 128.0,
-    "category": "西式料理",
+  "冬阴功汤": {
+    "category": "东南亚风味",
+    "price": 45.0,
     "image": ""
   },
   "冰美式": {
-    "price": 15.0,
     "category": "饮品甜点",
+    "price": 15.0,
+    "image": ""
+  },
+  "凯撒沙拉": {
+    "category": "西式料理",
+    "price": 32.0,
+    "image": ""
+  },
+  "奶油蘑菇汤": {
+    "category": "西式料理",
+    "price": 28.0,
+    "image": ""
+  },
+  "宫保鸡丁": {
+    "category": "中式经典",
+    "price": 28.0,
+    "image": ""
+  },
+  "手作酸奶": {
+    "category": "饮品甜点",
+    "price": 18.0,
+    "image": ""
+  },
+  "提拉米苏": {
+    "category": "饮品甜点",
+    "price": 25.0,
+    "image": ""
+  },
+  "泰式咖喱鸡": {
+    "category": "东南亚风味",
+    "price": 168.0,
+    "image": ""
+  },
+  "海南鸡饭": {
+    "category": "东南亚风味",
+    "price": 35.0,
+    "image": ""
+  },
+  "澳洲M5牛排": {
+    "category": "西式料理",
+    "price": 128.0,
+    "image": ""
+  },
+  "米饭": {
+    "category": "中式经典",
+    "price": 3.0,
+    "image": ""
+  },
+  "越式春卷": {
+    "category": "东南亚风味",
+    "price": 26.0,
+    "image": ""
+  },
+  "鱼香肉丝": {
+    "category": "中式经典",
+    "price": 24.0,
+    "image": ""
+  },
+  "麻婆豆腐": {
+    "category": "中式经典",
+    "price": 22.0,
+    "image": ""
+  },
+  "黑椒意大利面": {
+    "category": "西式料理",
+    "price": 58.0,
     "image": ""
   }
 }

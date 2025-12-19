@@ -12,14 +12,16 @@ RUN npm run build
 FROM python:3.11-slim
 WORKDIR /app
 
+# 复制依赖并安装 (包含 gunicorn)
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
+# 从前端构建阶段复制静态文件
 COPY --from=frontend-builder /app/backend/static ./static
 
 ENV PORT=5000
 EXPOSE 5000
 
-# [关键修改] 将 -w 4 改为 -w 1，避免多进程导致的数据不一致
+# 启动命令 (确保 requirements.txt 里有 gunicorn)
 CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "app:app"]

@@ -4,5 +4,13 @@ export default defineConfig({
   build: {
     outDir: '../backend/static',
     emptyOutDir: true,
-  }
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+    },
+  },
 })

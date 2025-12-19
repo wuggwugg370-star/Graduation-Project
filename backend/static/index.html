@@ -1,89 +1,132 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Neo Dining System</title>
-    <script type="module" crossorigin src="/assets/index-DIdHAwg_.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-Bc3pkvSh.css">
-  </head>
-  <body>
-    <nav>
-      <div class="container nav-content">
-        <div class="brand">Neo Dining</div>
-        <div class="nav-actions">
-          <button id="admin-login-btn" style="border:none;background:none;cursor:pointer;margin-right:15px;color:#666;font-size:0.9rem;">Admin Login</button>
-          
-          <div class="search-trigger" id="search-trigger">
-            <span>Search 🔍</span>
-          </div>
-          <div class="cart-icon-btn" id="cart-toggle-btn">
-            🛒 <span id="cart-badge" class="badge">0</span>
-          </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neo Dining - 新派餐厅</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script type="module" crossorigin src="/assets/index-BWYSFQc-.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Cbp5ibB2.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <div class="logo">Neo Dining</div>
+            
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索菜品...">
+                <button id="searchBtn"><i class="fas fa-search"></i></button>
+            </div>
+            
+            <div class="header-right">
+                <button id="adminLoginBtn" class="admin-btn">Admin Login</button>
+                <button id="cartBtn" class="cart-btn">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span id="cartCount" class="cart-count">0</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 分类标签 -->
+        <div class="category-tabs">
+            <button class="tab-btn active" data-category="all">All</button>
+            <button class="tab-btn" data-category="东南亚风味">东南亚风味</button>
+            <button class="tab-btn" data-category="饮品甜点">饮品甜点</button>
+            <button class="tab-btn" data-category="西式料理">西式料理</button>
+            <button class="tab-btn" data-category="中式经典">中式经典</button>
         </div>
-      </div>
-    </nav>
 
-    <div class="container category-wrapper">
-      <div class="category-bar" id="category-bar"></div>
+        <!-- 菜品展示区域 -->
+        <main class="menu-container">
+            <div id="menuGrid" class="menu-grid">
+                <!-- 菜品会通过JavaScript动态生成 -->
+            </div>
+        </main>
+
+        <!-- 购物车弹窗 -->
+        <div id="cartModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>购物车</h2>
+                    <button class="close-btn" id="closeCartModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="cartItems" class="cart-items">
+                        <!-- 购物车项会通过JavaScript动态生成 -->
+                    </div>
+                    <div class="cart-total">
+                        <span>总计:</span>
+                        <span id="cartTotal">¥0.00</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="clearCartBtn">清空购物车</button>
+                    <button class="btn btn-primary" id="submitOrderBtn">提交订单</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 管理员登录弹窗 -->
+        <div id="adminLoginModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>管理员登录</h2>
+                    <button class="close-btn" id="closeAdminLoginModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="adminLoginForm">
+                        <div class="form-group">
+                            <label for="adminPassword">密码:</label>
+                            <input type="password" id="adminPassword" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">登录</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加菜品弹窗 -->
+        <div id="addItemModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>添加菜品</h2>
+                    <button class="close-btn" id="closeAddItemModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="addItemForm">
+                        <div class="form-group">
+                            <label for="itemName">菜品名称:</label>
+                            <input type="text" id="itemName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="itemCategory">分类:</label>
+                            <select id="itemCategory">
+                                <option value="东南亚风味">东南亚风味</option>
+                                <option value="饮品甜点">饮品甜点</option>
+                                <option value="西式料理">西式料理</option>
+                                <option value="中式经典">中式经典</option>
+                                <option value="未分类">未分类</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="itemPrice">价格:</label>
+                            <input type="number" id="itemPrice" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="itemImage">图片URL:</label>
+                            <input type="text" id="itemImage">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">保存</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <main class="container">
-      <div id="admin-toolbar" style="display:none; margin-bottom: 20px; padding: 15px; background: #eef4ff; border-radius: 8px; align-items: center; gap: 15px; border:1px solid #d1e3ff;">
-        <span style="font-weight:bold; color:#0056b3;">🔧 管理员模式</span>
-        <button id="add-item-btn" style="padding: 6px 15px; background: #0071e3; color: white; border: none; border-radius: 4px; cursor: pointer;">+ 添加新菜品</button>
-        <button id="logout-btn" style="padding: 6px 15px; background: #d93025; color: white; border: none; border-radius: 4px; cursor: pointer;">退出登录</button>
-      </div>
-
-      <div id="loading" class="loading-spinner">Connecting to System...</div>
-      <div id="menu-grid" class="grid"></div>
-    </main>
-
-    <div id="item-modal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
-      <div style="background:white; padding:2rem; border-radius:12px; width:90%; max-width:400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-        <h2 id="modal-title" style="margin-top:0;">编辑菜品</h2>
-        <form id="item-form" style="display:flex; flex-direction:column; gap:12px;">
-          <input type="text" id="input-name" placeholder="菜名 (Name)" required style="padding:10px; border:1px solid #ccc; border-radius:4px;">
-          <input type="number" id="input-price" placeholder="价格 (Price)" step="0.1" required style="padding:10px; border:1px solid #ccc; border-radius:4px;">
-          <input type="text" id="input-category" placeholder="分类 (Category)" required style="padding:10px; border:1px solid #ccc; border-radius:4px;">
-          <input type="url" id="input-image" placeholder="图片链接 (Image URL)" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
-          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
-            <button type="button" id="modal-cancel" style="padding:8px 15px; background:#f5f5f7; border:1px solid #ddd; border-radius:4px; cursor:pointer;">取消</button>
-            <button type="submit" style="padding:8px 15px; background:#0071e3; color:white; border:none; border-radius:4px; cursor:pointer;">保存</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div id="search-overlay" class="search-overlay">
-      <div class="search-content">
-         <input type="text" id="global-search" placeholder="Type to search...">
-         <button id="close-search">Close</button>
-      </div>
-    </div>
-
-    <div id="cart-drawer" class="cart-drawer">
-      <div class="drawer-header"><h2>Shopping Bag</h2><button id="close-drawer">×</button></div>
-      <div id="cart-items" style="flex:1; overflow-y:auto; padding:15px;"></div>
-      <div class="drawer-footer">
-          <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-weight:bold; font-size:1.1rem;">
-              <span>Total:</span>
-              <span id="drawer-total-price">¥0.00</span>
-          </div>
-          <button id="checkout-btn">Check Out</button>
-      </div>
-    </div>
-    <div id="drawer-backdrop" class="drawer-backdrop"></div>
-
-    <div id="success-modal" class="success-modal">
-       <div class="success-content">
-           <div style="font-size:3rem;">🎉</div>
-           <h2>Order Placed!</h2>
-           <p>Your delicious food is being prepared.</p>
-           <button id="success-close-btn">Close</button>
-       </div>
-    </div>
-
-  </body>
+</body>
 </html>
