@@ -133,33 +133,34 @@ Write-Host ""
 Write-Host "[6/6] 启动服务..." -ForegroundColor $Color_Info
 Write-Host "=======================================================" -ForegroundColor $Color_Header
 Write-Host " 准备启动 Neo Dining System 服务..." -ForegroundColor $Color_Info
-Write-Host " 访问地址: http://localhost:5000" -ForegroundColor $Color_Info
+Write-Host " 后端访问地址: http://localhost:5001" -ForegroundColor $Color_Info
+Write-Host " 前端访问地址: http://localhost:5173 (开发模式)" -ForegroundColor $Color_Info
 Write-Host "  停止服务: 按 Ctrl+C 键" -ForegroundColor $Color_Info
 Write-Host "=======================================================" -ForegroundColor $Color_Header
 
 # --- 端口检查与服务启动 ---
-# 检查端口 5000 是否被占用
+# 检查端口 5001 是否被占用
 Write-Host ""
-Write-Host " 检查端口 5000 是否被占用..." -ForegroundColor $Color_Info
+Write-Host " 检查端口 5001 是否被占用..." -ForegroundColor $Color_Info
 
 # 使用更可靠的端口检查方法
-$portCheck = Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue
+$portCheck = Get-NetTCPConnection -LocalPort 5001 -ErrorAction SilentlyContinue
 
 if ($portCheck) {
-    Write-Host "  [警告] 端口 5000 已被占用！" -ForegroundColor $Color_Warning
+    Write-Host "  [警告] 端口 5001 已被占用！" -ForegroundColor $Color_Warning
     Write-Host "正在尝试关闭占用端口的进程..." -ForegroundColor $Color_Info
     
     foreach ($connection in $portCheck) {
         try {
             Stop-Process -Id $connection.OwningProcess -Force -ErrorAction Stop
-            Write-Host " 已终止进程 $($connection.OwningProcess) (占用端口 5000)" -ForegroundColor $Color_Success
+            Write-Host " 已终止进程 $($connection.OwningProcess) (占用端口 5001)" -ForegroundColor $Color_Success
         } catch {
             Write-Host " 无法终止进程 $($connection.OwningProcess)" -ForegroundColor $Color_Error
             Write-Host "错误: $($_.Exception.Message)" -ForegroundColor $Color_Error
         }
     }
 } else {
-    Write-Host " 端口 5000 可用" -ForegroundColor $Color_Success
+    Write-Host " 端口 5001 可用" -ForegroundColor $Color_Success
 }
 
 # --- 启动服务器 ---
@@ -167,7 +168,8 @@ Write-Host ""
 Write-Host "=======================================================" -ForegroundColor $Color_Header
 Write-Host " 正在启动 Neo Dining System 服务..." -ForegroundColor $Color_Header
 Write-Host "=======================================================" -ForegroundColor $Color_Header
-Write-Host " 访问地址: http://localhost:5000" -ForegroundColor $Color_Info
+Write-Host " 后端访问地址: http://localhost:5001" -ForegroundColor $Color_Info
+Write-Host " 前端访问地址: http://localhost:5173 (开发模式)" -ForegroundColor $Color_Info
 Write-Host " 服务日志将显示在下方..." -ForegroundColor $Color_Info
 Write-Host "  停止服务: 按 Ctrl+C 键" -ForegroundColor $Color_Info
 Write-Host "=======================================================" -ForegroundColor $Color_Header

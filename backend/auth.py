@@ -1,15 +1,12 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from db import create_db_connection
-import mysql.connector
 from mysql.connector import Error
 
 
 def register_user(username, password, phone):
-    """
-    用户注册
-    """
+    """用户注册"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return False, "数据库连接失败"
 
     cursor = connection.cursor()
@@ -24,10 +21,8 @@ def register_user(username, password, phone):
         if cursor.fetchone():
             return False, "手机号已被注册"
 
-        # 创建密码哈希
+        # 创建密码哈希并插入新用户
         password_hash = generate_password_hash(password)
-
-        # 插入新用户
         cursor.execute(
             "INSERT INTO users (username, password_hash, phone) VALUES (%s, %s, %s)",
             (username, password_hash, phone)
@@ -43,11 +38,9 @@ def register_user(username, password, phone):
 
 
 def login_user(username, password):
-    """
-    用户登录
-    """
+    """用户登录"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return False, "数据库连接失败", None
 
     cursor = connection.cursor(dictionary=True)
@@ -56,15 +49,11 @@ def login_user(username, password):
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         user = cursor.fetchone()
 
-        if not user:
-            return False, "用户名不存在", None
-
-        # 验证密码
-        if not check_password_hash(user['password_hash'], password):
-            return False, "密码错误", None
+        if not user or not check_password_hash(user['password_hash'], password):
+            return False, "用户名或密码错误", None
 
         return True, "登录成功", {
-            'user_id': user['user_id'],
+            'user_id': user['id'],
             'username': user['username'],
             'phone': user['phone']
         }
@@ -76,11 +65,9 @@ def login_user(username, password):
 
 
 def login_admin(username, password):
-    """
-    管理员登录
-    """
+    """管理员登录"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return False, "数据库连接失败"
 
     cursor = connection.cursor(dictionary=True)
@@ -89,12 +76,8 @@ def login_admin(username, password):
         cursor.execute("SELECT * FROM admin_users WHERE username = %s", (username,))
         admin = cursor.fetchone()
 
-        if not admin:
-            return False, "管理员不存在"
-
-        # 验证密码
-        if not check_password_hash(admin['password_hash'], password):
-            return False, "密码错误"
+        if not admin or not check_password_hash(admin['password_hash'], password):
+            return False, "用户名或密码错误"
 
         return True, "登录成功"
     except Error as e:
@@ -105,16 +88,14 @@ def login_admin(username, password):
 
 
 def get_user_by_id(user_id):
-    """
-    根据用户ID获取用户信息
-    """
+    """根据用户ID获取用户信息"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return None
 
     cursor = connection.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
+        cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
         return cursor.fetchone()
     except Error as e:
         print(f"获取用户信息失败: {e}")

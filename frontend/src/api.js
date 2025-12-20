@@ -1,6 +1,6 @@
 const API_BASE = '/api';
 
-async function request(endpoint, options = {}) {
+async function request (endpoint, options = {}) {
   const res = await fetch(`${API_BASE}${endpoint}`, options);
   const json = await res.json();
   if (json.code !== 200) throw new Error(json.msg || 'Error');

@@ -1,12 +1,9 @@
 from db import create_db_connection
-import mysql.connector
 from mysql.connector import Error
 
 
 def get_menu():
-    """
-    获取完整菜单数据
-    """
+    """获取完整菜单数据"""
     menu_items = get_menu_items()
     if not menu_items:
         return None
@@ -15,11 +12,7 @@ def get_menu():
     menu = {}
     for item in menu_items:
         category = item.get('category', '其他')
-        if category not in menu:
-            menu[category] = []
-        
-        # 使用get方法避免键不存在的错误
-        menu[category].append({
+        menu.setdefault(category, []).append({
             'id': item.get('item_id', item.get('id', '')),
             'name': item.get('name', ''),
             'price': float(item.get('price', 0)),
@@ -31,19 +24,15 @@ def get_menu():
 
 
 def get_menu_items():
-    """
-    获取所有菜品
-    """
+    """获取所有菜品"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return None
 
     cursor = connection.cursor(dictionary=True)
     try:
-        # 使用更安全的查询方式，避免依赖is_available列
         cursor.execute("SELECT * FROM menu_items ORDER BY category")
-        menu_items = cursor.fetchall()
-        return menu_items
+        return cursor.fetchall()
     except Error as e:
         print(f"获取菜品失败: {e}")
         return None
@@ -53,18 +42,15 @@ def get_menu_items():
 
 
 def get_menu_items_by_category(category):
-    """
-    根据分类获取菜品
-    """
+    """根据分类获取菜品"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return None
 
     cursor = connection.cursor(dictionary=True)
     try:
         cursor.execute("SELECT * FROM menu_items WHERE category = %s AND is_available = TRUE", (category,))
-        menu_items = cursor.fetchall()
-        return menu_items
+        return cursor.fetchall()
     except Error as e:
         print(f"获取分类菜品失败: {e}")
         return None
@@ -74,11 +60,9 @@ def get_menu_items_by_category(category):
 
 
 def add_menu_item(name, category, price, description='', image=''):
-    """
-    添加菜品
-    """
+    """添加菜品"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return False, "数据库连接失败"
 
     cursor = connection.cursor()
@@ -99,11 +83,9 @@ def add_menu_item(name, category, price, description='', image=''):
 
 
 def update_menu_item(item_id, name=None, category=None, price=None, description=None, image=None, is_available=None):
-    """
-    更新菜品
-    """
+    """更新菜品"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return False, "数据库连接失败"
 
     cursor = connection.cursor()
@@ -112,24 +94,11 @@ def update_menu_item(item_id, name=None, category=None, price=None, description=
         update_fields = []
         update_values = []
         
-        if name is not None:
-            update_fields.append("name = %s")
-            update_values.append(name)
-        if category is not None:
-            update_fields.append("category = %s")
-            update_values.append(category)
-        if price is not None:
-            update_fields.append("price = %s")
-            update_values.append(price)
-        if description is not None:
-            update_fields.append("description = %s")
-            update_values.append(description)
-        if image is not None:
-            update_fields.append("image = %s")
-            update_values.append(image)
-        if is_available is not None:
-            update_fields.append("is_available = %s")
-            update_values.append(is_available)
+        for field, value in [('name', name), ('category', category), ('price', price),
+                           ('description', description), ('image', image), ('is_available', is_available)]:
+            if value is not None:
+                update_fields.append(f"{field} = %s")
+                update_values.append(value)
         
         if not update_fields:
             return False, "没有需要更新的字段"
@@ -142,10 +111,7 @@ def update_menu_item(item_id, name=None, category=None, price=None, description=
         cursor.execute(update_query, tuple(update_values))
         connection.commit()
         
-        if cursor.rowcount > 0:
-            return True, "更新菜品成功"
-        else:
-            return False, "菜品不存在"
+        return (True, "更新菜品成功") if cursor.rowcount > 0 else (False, "菜品不存在")
     except Error as e:
         connection.rollback()
         print(f"更新菜品失败: {e}")
@@ -156,25 +122,16 @@ def update_menu_item(item_id, name=None, category=None, price=None, description=
 
 
 def delete_menu_item(item_id):
-    """
-    删除菜品（软删除）
-    """
+    """删除菜品（软删除）"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return False, "数据库连接失败"
 
     cursor = connection.cursor()
     try:
-        cursor.execute(
-            "UPDATE menu_items SET is_available = FALSE WHERE item_id = %s",
-            (item_id,)
-        )
+        cursor.execute("UPDATE menu_items SET is_available = FALSE WHERE item_id = %s", (item_id,))
         connection.commit()
-        
-        if cursor.rowcount > 0:
-            return True, "删除菜品成功"
-        else:
-            return False, "菜品不存在"
+        return (True, "删除菜品成功") if cursor.rowcount > 0 else (False, "菜品不存在")
     except Error as e:
         connection.rollback()
         print(f"删除菜品失败: {e}")
@@ -185,22 +142,15 @@ def delete_menu_item(item_id):
 
 
 def search_menu_items(keyword):
-    """
-    搜索菜品
-    """
+    """搜索菜品"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return []
 
     cursor = connection.cursor(dictionary=True)
     try:
-        # 使用更安全的查询方式，避免依赖is_available列
-        cursor.execute(
-            "SELECT * FROM menu_items WHERE name LIKE %s",
-            (f"%{keyword}%",)
-        )
-        menu_items = cursor.fetchall()
-        return menu_items
+        cursor.execute("SELECT * FROM menu_items WHERE name LIKE %s", (f"%{keyword}%",))
+        return cursor.fetchall()
     except Error as e:
         print(f"搜索菜品失败: {e}")
         return None

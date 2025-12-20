@@ -1,50 +1,36 @@
 import mysql.connector
 import sys
 import os
+from mysql.connector import Error
+from config import Config
 
 # 添加当前目录到模块搜索路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from mysql.connector import Error
-import json
-from datetime import datetime
-from config import Config
-
-
 def create_db_connection():
-    """
-    创建数据库连接，如果数据库不存在则创建
-    """
+    """创建数据库连接，如果数据库不存在则创建"""
     try:
-        # 先连接到MySQL服务器
         connection = mysql.connector.connect(
             host=Config.DB_HOST,
             user=Config.DB_USER,
             password=Config.DB_PASSWORD
         )
         
-        if connection.is_connected():
-            cursor = connection.cursor()
-            
-            # 创建数据库（如果不存在）
-            cursor.execute(f"CREATE DATABASE IF NOT EXISTS {Config.DB_NAME}")
-            
-            # 选择数据库
-            cursor.execute(f"USE {Config.DB_NAME}")
-            
-            cursor.close()
-            return connection
+        cursor = connection.cursor()
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {Config.DB_NAME}")
+        cursor.execute(f"USE {Config.DB_NAME}")
+        cursor.close()
+        
+        return connection
     except Error as e:
         print(f"创建数据库连接失败: {e}")
         return None
 
 
 def init_database():
-    """
-    初始化数据库表
-    """
+    """初始化数据库表"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         print("数据库连接失败，无法初始化数据库")
         return False
 
@@ -75,12 +61,6 @@ def init_database():
             )
         """)
 
-        # 确保menu_items表有is_available列
-        try:
-            cursor.execute("ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_available BOOLEAN DEFAULT TRUE")
-        except Error as e:
-            pass
-
         # 创建管理员表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS admin_users (
@@ -94,7 +74,7 @@ def init_database():
         # 创建用户表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                user_id INT AUTO_INCREMENT PRIMARY KEY,
+                id INT AUTO_INCREMENT PRIMARY KEY,
                 username VARCHAR(50) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
                 phone VARCHAR(20) NOT NULL UNIQUE,
@@ -111,16 +91,9 @@ def init_database():
                 user_id INT,
                 status VARCHAR(20) DEFAULT 'pending',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(user_id)
+                FOREIGN KEY (user_id) REFERENCES users(id)
             )
         """)
-
-        # 确保orders表有user_id列
-        try:
-            cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INT")
-            cursor.execute("ALTER TABLE orders ADD FOREIGN KEY IF NOT EXISTS (user_id) REFERENCES users(user_id)")
-        except Error as e:
-            pass
 
         # 创建操作日志表
         cursor.execute("""
@@ -134,18 +107,11 @@ def init_database():
         # 插入默认菜品类目
         categories = ['recommend', 'hot', 'breakfast', 'lunch', 'dinner', 'dessert', 'drink']
         for category in categories:
-            cursor.execute(
-                "INSERT IGNORE INTO categories (name) VALUES (%s)",
-                (category,)
-            )
+            cursor.execute("INSERT IGNORE INTO categories (name) VALUES (%s)", (category,))
 
         # 插入默认菜品数据
-        cursor.execute(
-            "SELECT COUNT(*) FROM menu_items"
-        )
-        count = cursor.fetchone()[0]
-
-        if count == 0:
+        cursor.execute("SELECT COUNT(*) FROM menu_items")
+        if cursor.fetchone()[0] == 0:
             menu_data = {
                 'recommend': [
                     {'name': '红烧肉', 'price': 38.00, 'image': 'https://picsum.photos/id/100/300/200'},
@@ -192,12 +158,8 @@ def init_database():
                     )
 
         # 创建默认管理员账户
-        cursor.execute(
-            "SELECT COUNT(*) FROM admin_users"
-        )
-        admin_count = cursor.fetchone()[0]
-
-        if admin_count == 0:
+        cursor.execute("SELECT COUNT(*) FROM admin_users")
+        if cursor.fetchone()[0] == 0:
             from werkzeug.security import generate_password_hash
             admin_password = generate_password_hash('admin123')
             cursor.execute(
@@ -219,18 +181,15 @@ def init_database():
 
 
 def get_menu_items():
-    """
-    获取所有菜品
-    """
+    """获取所有菜品"""
     connection = create_db_connection()
-    if connection is None:
+    if not connection:
         return None
 
     cursor = connection.cursor(dictionary=True)
     try:
         cursor.execute("SELECT * FROM menu_items WHERE is_available = TRUE ORDER BY category")
-        menu_items = cursor.fetchall()
-        return menu_items
+        return cursor.fetchall()
     except Error as e:
         print(f"获取菜品失败: {e}")
         return None

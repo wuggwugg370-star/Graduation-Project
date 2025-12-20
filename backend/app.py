@@ -6,7 +6,7 @@ import datetime
 # 导入自定义模块
 from config import Config
 from db import create_db_connection, init_database
-from menu import get_menu, search_menu_items, add_menu_item, update_menu_item, delete_menu_item
+from menu import get_menu, search_menu_items, get_menu_items, add_menu_item, update_menu_item, delete_menu_item
 from orders import create_order, get_orders_by_user, get_all_orders, get_order, update_order_status
 from auth import register_user, login_user, login_admin
 
@@ -46,9 +46,10 @@ DEFAULT_MENU = {
 # 加载菜单数据
 def load_menu():
     # 从数据库加载菜单数据
-    connection = create_db_connection()
-    if connection is None:
-        # 如果数据库连接失败，尝试从JSON文件加载
+    items = get_menu_items()
+    
+    if not items:
+        # 如果数据库查询失败，尝试从JSON文件加载
         if os.path.exists(MENU_FILE):
             try:
                 with open(MENU_FILE, 'r', encoding='utf-8') as f:
@@ -58,63 +59,23 @@ def load_menu():
         # 如果都失败，返回默认数据
         return DEFAULT_MENU
     
-    cursor = connection.cursor(dictionary=True)
     menu = {}
+    for item in items:
+        menu[item['name']] = {
+            'category': item['category'],
+            'price': float(item['price']),
+            'image': item['image']
+        }
     
-    try:
-        cursor.execute("SELECT name, category, price, image FROM menu_items")
-        items = cursor.fetchall()
-        
-        for item in items:
-            menu[item['name']] = {
-                'category': item['category'],
-                'price': float(item['price']),
-                'image': item['image']
-            }
-        
-        return menu
-    except Exception as e:
-        print(f"从数据库加载菜单数据失败: {e}")
-        return DEFAULT_MENU
-    finally:
-        cursor.close()
-        connection.close()
+    return menu
 
-# 保存菜单数据
-def save_menu(menu_data):
-    # 保存到JSON文件作为备份
+# 保存菜单数据到JSON文件作为备份
+def backup_menu_to_json(menu_data):
     try:
         with open(MENU_FILE, 'w', encoding='utf-8') as f:
             json.dump(menu_data, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"保存菜单数据到JSON文件失败: {e}")
-    
-    # 同步到数据库
-    connection = create_db_connection()
-    if connection is None:
-        return False
-    
-    cursor = connection.cursor()
-    
-    try:
-        # 更新或插入菜品数据
-        for name, item in menu_data.items():
-            cursor.execute(
-                "INSERT INTO menu_items (name, category, price, image) VALUES (%s, %s, %s, %s) "
-                "ON DUPLICATE KEY UPDATE category = %s, price = %s, image = %s",
-                (name, item['category'], item['price'], item['image'],
-                 item['category'], item['price'], item['image'])
-            )
-        
-        connection.commit()
-        return True
-    except Exception as e:
-        print(f"保存菜单数据到数据库失败: {e}")
-        connection.rollback()
-        return False
-    finally:
-        cursor.close()
-        connection.close()
 
 # 获取所有菜品
 @app.route('/api/menu', methods=['GET'])
@@ -125,25 +86,46 @@ def get_menu_api():
 # 用户注册
 @app.route('/api/user/register', methods=['POST'])
 def user_register():
-    result = register_user(request.json)
-    return jsonify(result)
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    phone = data.get('phone')
+    
+    success, msg = register_user(username, password, phone)
+    if success:
+        return jsonify({"code": 200, "msg": msg})
+    else:
+        return jsonify({"code": 400, "msg": msg})
 
 # 用户登录
 @app.route('/api/user/login', methods=['POST'])
 def user_login_api():
-    result = login_user(request.json)
-    return jsonify(result)
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    success, msg, user_data = login_user(username, password)
+    if success:
+        return jsonify({"code": 200, "msg": msg, "data": user_data})
+    else:
+        return jsonify({"code": 401, "msg": msg})
 
 # 管理员登录
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login_api():
-    result = login_admin(request.json)
-    return jsonify(result)
+    data = request.json
+    password = data.get('password')
+    # 使用默认管理员用户名'admin'
+    result = login_admin('admin', password)
+    # 将结果转换为符合API规范的格式
+    if result[0]:
+        return jsonify({"code": 200, "msg": result[1]})
+    else:
+        return jsonify({"code": 401, "msg": result[1]})
 
 # 保存菜品（添加/编辑）
 @app.route('/api/admin/item', methods=['POST'])
 def save_item():
-    menu = load_menu()
     item_data = request.json
     
     name = item_data.get('name', '').strip()
@@ -160,12 +142,16 @@ def save_item():
     category = item_data.get('category', '').strip() or '未分类'
     image = item_data.get('image', '').strip()
     
-    menu[name] = {"category": category, "price": price, "image": image}
-    
-    if save_menu(menu):
+    # 添加到数据库
+    success, msg = add_menu_item(name, category, price, '', image)
+    if success:
+        # 更新JSON备份
+        menu = load_menu()
+        menu[name] = {"category": category, "price": price, "image": image}
+        backup_menu_to_json(menu)
         return jsonify({"code": 200, "msg": "保存成功"})
     else:
-        return jsonify({"code": 500, "msg": "保存失败"})
+        return jsonify({"code": 500, "msg": "保存失败: " + msg})
 
 # 提交订单
 @app.route('/api/order', methods=['POST'])
@@ -202,7 +188,10 @@ def submit_order():
 @app.route('/api/order/<order_id>', methods=['GET'])
 def get_order_api(order_id):
     result = get_order(order_id)
-    return jsonify(result)
+    if result:
+        return jsonify({"code": 200, "data": result})
+    else:
+        return jsonify({"code": 404, "msg": "订单不存在"})
 
 # 获取订单历史
 @app.route('/api/orders', methods=['GET'])
@@ -210,11 +199,12 @@ def get_orders_api():
     user_id = request.args.get('user_id')  # 获取用户ID参数
     
     if user_id:
-        result = get_orders_by_user(user_id)
+        orders = get_orders_by_user(user_id)
     else:
-        result = get_all_orders()
+        orders = get_all_orders()
     
-    return jsonify(result)
+    # 将结果转换为符合API规范的格式
+    return jsonify({"code": 200, "data": orders})
 
 # 更新订单状态
 @app.route('/api/order/<order_id>/status', methods=['PUT'])
