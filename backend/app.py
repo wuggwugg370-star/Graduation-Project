@@ -1,123 +1,22 @@
 from flask import Flask, jsonify, request, send_from_directory
 import os
 import json
-import mysql.connector
-from mysql.connector import Error
-from datetime import datetime
+import datetime
 
+# 导入自定义模块
+from config import Config
+from db import create_db_connection, init_database
+from menu import get_menu, search_menu_items, add_menu_item, update_menu_item, delete_menu_item
+from orders import create_order, get_orders_by_user, get_all_orders, get_order, update_order_status
+from auth import register_user, login_user, login_admin
+
+# 设置Flask应用
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'neo_dining_secret_key'
+app.config.from_object(Config)
 
-# 数据库配置
-DB_CONFIG = {
-    'host': 'localhost',
-    'port': 3306,
-    'user': 'root',
-    'password': '123456',
-    'database': 'neodining',
-    'charset': 'utf8mb4',
-    'collation': 'utf8mb4_unicode_ci'
-}
-
-# 创建数据库连接
-def create_db_connection():
-    try:
-        connection = mysql.connector.connect(**DB_CONFIG)
-        if connection.is_connected():
-            return connection
-    except Error as e:
-        print(f"数据库连接失败: {e}")
-        return None
-
-# 初始化数据库表
-def init_database():
-    connection = create_db_connection()
-    if connection is None:
-        return False
-    
-    cursor = connection.cursor()
-    
-    try:
-        # 创建菜品表
-        create_menu_table = """
-        CREATE TABLE IF NOT EXISTS menu_items (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) UNIQUE NOT NULL,
-            category VARCHAR(255) NOT NULL,
-            price DECIMAL(10, 2) NOT NULL,
-            image VARCHAR(255),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        );
-        """
-        
-        # 创建订单表
-        create_orders_table = """
-        CREATE TABLE IF NOT EXISTS orders (
-            order_id VARCHAR(255) PRIMARY KEY,
-            items JSON NOT NULL,
-            total_price DECIMAL(10, 2) NOT NULL,
-            status VARCHAR(50) DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        );
-        """
-        
-        # 创建操作日志表
-        create_logs_table = """
-        CREATE TABLE IF NOT EXISTS operation_logs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_type VARCHAR(50) NOT NULL,
-            operation_type VARCHAR(50) NOT NULL,
-            operation_details JSON NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """
-        
-        cursor.execute(create_menu_table)
-        cursor.execute(create_orders_table)
-        cursor.execute(create_logs_table)
-        connection.commit()
-        
-        # 强制使用默认菜单数据并清空现有数据
-        cursor.execute("TRUNCATE TABLE menu_items")
-        
-        # 使用默认菜单数据填充数据库
-        for name, item in DEFAULT_MENU.items():
-            cursor.execute(
-                "INSERT INTO menu_items (name, category, price, image) VALUES (%s, %s, %s, %s)",
-                (name, item['category'], item['price'], item['image'])
-            )
-        connection.commit()
-        
-        return True
-    except Error as e:
-        print(f"数据库初始化失败: {e}")
-        connection.rollback()
-        return False
-    finally:
-        cursor.close()
-        connection.close()
-
-# 记录操作日志
-def log_operation(user_type, operation_type, operation_details):
-    connection = create_db_connection()
-    if connection is None:
-        return
-    
-    cursor = connection.cursor()
-    try:
-        cursor.execute(
-            "INSERT INTO operation_logs (user_type, operation_type, operation_details) VALUES (%s, %s, %s)",
-            (user_type, operation_type, json.dumps(operation_details, ensure_ascii=False))
-        )
-        connection.commit()
-    except Error as e:
-        print(f"记录操作日志失败: {e}")
-        connection.rollback()
-    finally:
-        cursor.close()
-        connection.close()
+# 启用全局跨域资源共享
+from flask_cors import CORS
+CORS(app)
 
 # 菜品数据文件路径
 MENU_FILE = os.path.join('data', 'menu_data.json')
@@ -174,7 +73,7 @@ def load_menu():
             }
         
         return menu
-    except Error as e:
+    except Exception as e:
         print(f"从数据库加载菜单数据失败: {e}")
         return DEFAULT_MENU
     finally:
@@ -209,7 +108,7 @@ def save_menu(menu_data):
         
         connection.commit()
         return True
-    except Error as e:
+    except Exception as e:
         print(f"保存菜单数据到数据库失败: {e}")
         connection.rollback()
         return False
@@ -219,19 +118,27 @@ def save_menu(menu_data):
 
 # 获取所有菜品
 @app.route('/api/menu', methods=['GET'])
-def get_menu():
+def get_menu_api():
     menu = load_menu()
     return jsonify({"code": 200, "data": menu})
 
+# 用户注册
+@app.route('/api/user/register', methods=['POST'])
+def user_register():
+    result = register_user(request.json)
+    return jsonify(result)
+
+# 用户登录
+@app.route('/api/user/login', methods=['POST'])
+def user_login_api():
+    result = login_user(request.json)
+    return jsonify(result)
+
 # 管理员登录
 @app.route('/api/admin/login', methods=['POST'])
-def admin_login():
-    data = request.json
-    password = data.get('password', '')
-    if password == 'admin123':
-        return jsonify({"code": 200, "msg": "登录成功"})
-    else:
-        return jsonify({"code": 401, "msg": "密码错误"})
+def admin_login_api():
+    result = login_admin(request.json)
+    return jsonify(result)
 
 # 保存菜品（添加/编辑）
 @app.route('/api/admin/item', methods=['POST'])
@@ -265,6 +172,7 @@ def save_item():
 def submit_order():
     data = request.json
     items = data.get('items', [])
+    user_id = data.get('user_id')  # 获取用户ID
     
     if not items:
         return jsonify({"code": 400, "msg": "订单不能为空"})
@@ -284,115 +192,38 @@ def submit_order():
         total_price += menu[name]['price'] * quantity
     
     # 生成唯一订单号
-    order_id = f"ORD_{datetime.now().strftime('%Y%m%d%H%M%S')}_{os.urandom(4).hex().upper()}"
+    order_id = f"ORD_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{os.urandom(4).hex().upper()}"
     
-    # 保存订单到数据库
-    connection = create_db_connection()
-    if connection is None:
-        # 如果数据库连接失败，返回成功但不保存到数据库
-        return jsonify({"code": 200, "msg": "订单提交成功", "order_id": order_id, "total_price": total_price})
-    
-    cursor = connection.cursor()
-    
-    try:
-        cursor.execute(
-            "INSERT INTO orders (order_id, items, total_price, status) VALUES (%s, %s, %s, %s)",
-            (order_id, json.dumps(items, ensure_ascii=False), total_price, 'pending')
-        )
-        connection.commit()
-        
-        # 记录操作日志
-        log_operation('customer', 'place_order', {
-            'order_id': order_id,
-            'items': items,
-            'total_price': total_price
-        })
-        
-        return jsonify({
-            "code": 200, 
-            "msg": "订单提交成功", 
-            "order_id": order_id, 
-            "total_price": total_price,
-            "status": "pending",
-            "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        })
-    except Error as e:
-        print(f"保存订单到数据库失败: {e}")
-        connection.rollback()
-        return jsonify({
-            "code": 200, 
-            "msg": "订单提交成功", 
-            "order_id": order_id, 
-            "total_price": total_price
-        })
-    finally:
-        cursor.close()
-        connection.close()
+    # 调用订单创建模块
+    result = create_order(items, total_price, user_id, order_id)
+    return jsonify(result)
 
 # 获取订单详情
 @app.route('/api/order/<order_id>', methods=['GET'])
-def get_order(order_id):
-    connection = create_db_connection()
-    if connection is None:
-        return jsonify({"code": 500, "msg": "数据库连接失败"})
-    
-    cursor = connection.cursor(dictionary=True)
-    
-    try:
-        cursor.execute("SELECT * FROM orders WHERE order_id = %s", (order_id,))
-        order = cursor.fetchone()
-        
-        if order is None:
-            return jsonify({"code": 404, "msg": "订单不存在"})
-        
-        return jsonify({
-            "code": 200, 
-            "data": {
-                "order_id": order['order_id'],
-                "items": json.loads(order['items']),
-                "total_price": float(order['total_price']),
-                "status": order['status'],
-                "created_at": order['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
-                "updated_at": order['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
-            }
-        })
-    except Error as e:
-        print(f"获取订单详情失败: {e}")
-        return jsonify({"code": 500, "msg": "获取订单详情失败"})
-    finally:
-        cursor.close()
-        connection.close()
+def get_order_api(order_id):
+    result = get_order(order_id)
+    return jsonify(result)
 
 # 获取订单历史
 @app.route('/api/orders', methods=['GET'])
-def get_orders():
-    connection = create_db_connection()
-    if connection is None:
-        return jsonify({"code": 500, "msg": "数据库连接失败"})
+def get_orders_api():
+    user_id = request.args.get('user_id')  # 获取用户ID参数
     
-    cursor = connection.cursor(dictionary=True)
+    if user_id:
+        result = get_orders_by_user(user_id)
+    else:
+        result = get_all_orders()
     
-    try:
-        cursor.execute("SELECT * FROM orders ORDER BY created_at DESC")
-        orders = cursor.fetchall()
-        
-        formatted_orders = []
-        for order in orders:
-            formatted_orders.append({
-                "order_id": order['order_id'],
-                "items": json.loads(order['items']),
-                "total_price": float(order['total_price']),
-                "status": order['status'],
-                "created_at": order['created_at'].strftime('%Y-%m-%d %H:%M:%S')
-            })
-        
-        return jsonify({"code": 200, "data": formatted_orders})
-    except Error as e:
-        print(f"获取订单历史失败: {e}")
-        return jsonify({"code": 500, "msg": "获取订单历史失败"})
-    finally:
-        cursor.close()
-        connection.close()
+    return jsonify(result)
+
+# 更新订单状态
+@app.route('/api/order/<order_id>/status', methods=['PUT'])
+def update_order_status_api(order_id):
+    data = request.json
+    status = data.get('status')
+    
+    result = update_order_status(order_id, status)
+    return jsonify(result)
 
 # 提供静态文件
 @app.route('/', defaults={'path': ''})

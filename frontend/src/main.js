@@ -1,13 +1,12 @@
-// 导入玻璃态效果样式
-import './styles/glassmorphism.css';
+// [修复 4] 删除/注释 CSS 导入，防止脚本执行中断
+// import './styles/glassmorphism.css';
 
-// API配置
-const API_BASE_URL = '/api';
-
-// 全局变量
-let menu = {};
-let cart = [];
-let orders = [];
+// 导入模块化组件
+import * as auth from './components/auth.js';
+import * as cartModule from './components/cart.js';
+import * as menuModule from './components/menu.js';
+import * as orderModule from './components/order.js';
+import * as api from './api.js';
 
 // 全局DOM元素引用
 let menuGrid;
@@ -47,18 +46,23 @@ let closeHistoryBtn;
 async function initApp() {
     console.log('开始初始化应用...');
     try {
+        // 初始化认证组件
+        auth.initAuth();
+        
+        // 初始化购物车组件
+        cartModule.initCart();
+        
+        // 检查用户登录状态
+        updateUserInterface();
+        
         // 加载菜单数据
-        console.log('调用loadMenu()');
-        await loadMenu();
-        console.log('loadMenu()调用完成');
+        console.log('调用fetchMenu()');
+        await menuModule.fetchMenu();
+        console.log('fetchMenu()调用完成');
         // 渲染菜单
         console.log('调用renderMenu()');
         renderMenu();
         console.log('renderMenu()调用完成');
-        // 加载购物车数据
-        console.log('调用loadCart()');
-        loadCart();
-        console.log('loadCart()调用完成');
         // 更新购物车数量
         console.log('调用updateCartCount()');
         updateCartCount();
@@ -74,51 +78,18 @@ async function initApp() {
     }
 }
 
-// 加载菜单数据
-async function loadMenu() {
-    console.log('开始加载菜单数据...');
-    try {
-        const response = await fetch(`${API_BASE_URL}/menu`);
-        console.log('菜单API响应:', response);
-        const data = await response.json();
-        console.log('菜单API数据:', data);
-        if (data.code === 200) {
-            // 直接使用对象格式的数据
-            menu = data.data;
-            console.log('最终菜单数据:', menu);
-        } else {
-            throw new Error('加载菜单数据失败');
-        }
-    } catch (error) {
-        console.error('加载菜单失败:', error);
-        // 使用默认菜单数据
-        console.log('使用默认菜单数据');
-        menu = {
-            "冬阴功汤": {"category": "东南亚风味", "price": 45.0, "image": ""},
-            "冰美式": {"category": "饮品甜点", "price": 15.0, "image": ""},
-            "凯撒沙拉": {"category": "西式料理", "price": 32.0, "image": ""},
-            "奶油蘑菇汤": {"category": "西式料理", "price": 28.0, "image": ""},
-            "宫保鸡丁": {"category": "中式经典", "price": 28.0, "image": ""},
-            "手作酸奶": {"category": "饮品甜点", "price": 18.0, "image": ""},
-            "提拉米苏": {"category": "饮品甜点", "price": 25.0, "image": ""},
-            "泰式咖喱鸡": {"category": "东南亚风味", "price": 168.0, "image": ""},
-            "海南鸡饭": {"category": "东南亚风味", "price": 35.0, "image": ""},
-            "澳洲M5牛排": {"category": "西式料理", "price": 128.0, "image": ""},
-            "米饭": {"category": "中式经典", "price": 3.0, "image": ""},
-            "越式春卷": {"category": "东南亚风味", "price": 26.0, "image": ""},
-            "鱼香肉丝": {"category": "中式经典", "price": 24.0, "image": ""},
-            "麻婆豆腐": {"category": "中式经典", "price": 22.0, "image": ""},
-            "黑椒意大利面": {"category": "西式料理", "price": 58.0, "image": ""}
-        };
-        console.log('默认菜单数据:', menu);
-    }
-}
-
 // 渲染菜单
 function renderMenu(filteredMenu = null) {
     console.log('开始渲染菜单...');
     console.log('菜单网格元素:', menuGrid);
-    const displayMenu = filteredMenu || menu;
+    
+    // 将数组转换为对象格式以保持现有代码兼容
+    const menuArray = filteredMenu || menuModule.getMenuItemsByCategory('all');
+    const displayMenu = menuArray.reduce((obj, item) => {
+        obj[item.name] = item;
+        return obj;
+    }, {});
+    
     console.log('要渲染的菜单数据:', displayMenu);
     
     if (Object.keys(displayMenu).length === 0) {
@@ -157,15 +128,8 @@ function renderMenu(filteredMenu = null) {
 // 搜索功能
 async function searchMenu() {
     const keyword = searchInput.value.toLowerCase();
-    const filteredMenu = {};
-    
-    Object.entries(menu).forEach(([name, item]) => {
-        if (name.toLowerCase().includes(keyword) || item.category.toLowerCase().includes(keyword)) {
-            filteredMenu[name] = item;
-        }
-    });
-    
-    renderMenu(filteredMenu);
+    const searchResults = menuModule.searchMenuItems(keyword);
+    renderMenu(searchResults);
 }
 
 // 分类筛选
@@ -173,56 +137,32 @@ function filterMenuByCategory(category) {
     if (category === 'all') {
         renderMenu();
     } else {
-        const filteredMenu = {};
-        Object.entries(menu).forEach(([name, item]) => {
-            if (item.category === category) {
-                filteredMenu[name] = item;
-            }
-        });
+        const filteredMenu = menuModule.getMenuItemsByCategory(category);
         renderMenu(filteredMenu);
     }
 }
 
 // 添加到购物车
 function addToCart(itemName) {
-    const item = menu[itemName];
+    const item = menuModule.getMenuItemByName(itemName);
     if (!item) {
         console.error('商品不存在:', itemName);
         showNotification('商品不存在', 'error');
         return;
     }
     
-    // 检查购物车中是否已存在该商品
-    const existingItemIndex = cart.findIndex(item => item.name === itemName);
+    // 使用购物车组件添加商品
+    cartModule.addToCart(item);
     
-    if (existingItemIndex >= 0) {
-        // 如果已存在，增加数量
-        cart[existingItemIndex].quantity += 1;
-    } else {
-        // 如果不存在，添加到购物车
-        cart.push({
-            name: itemName,
-            category: item.category,
-            price: item.price,
-            quantity: 1,
-            image: item.image
-        });
-    }
-    
-    // 保存购物车数据
-    saveCart();
     // 更新购物车数量显示
     updateCartCount();
     // 显示添加成功通知
     showNotification(`${itemName} 已添加到购物车`, 'success');
 }
 
-
-
 // 从购物车移除
 function removeFromCart(itemName) {
-    cart = cart.filter(item => item.name !== itemName);
-    saveCart();
+    cartModule.removeFromCart(itemName);
     updateCartCount();
     renderCartItems();
     calculateCartTotal();
@@ -230,18 +170,15 @@ function removeFromCart(itemName) {
 
 // 更新购物车商品数量
 function updateCartItemQuantity(itemName, change) {
-    const item = cart.find(item => item.name === itemName);
+    const item = cartModule.getCartItems().find(item => item.name === itemName);
     if (!item) return;
     
-    item.quantity += change;
+    const newQuantity = item.quantity + change;
+    cartModule.updateCartItemQuantity(itemName, newQuantity);
     
-    if (item.quantity <= 0) {
-        removeFromCart(itemName);
-    } else {
-        saveCart();
-        renderCartItems();
-        calculateCartTotal();
-    }
+    updateCartCount();
+    renderCartItems();
+    calculateCartTotal();
 }
 
 // 更新购物车数量显示
@@ -250,7 +187,7 @@ function updateCartCount() {
     if (cartBtn) {
         const cartCount = cartBtn.querySelector('.cart-count');
         if (cartCount) {
-            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            const totalItems = cartModule.getCartItemCount();
             cartCount.textContent = totalItems;
             cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
         }
@@ -259,8 +196,7 @@ function updateCartCount() {
 
 // 清空购物车
 function clearCart() {
-    cart = [];
-    saveCart();
+    cartModule.clearCart();
     updateCartCount();
     renderCartItems();
     calculateCartTotal();
@@ -270,8 +206,9 @@ function clearCart() {
 // 渲染购物车商品
 function renderCartItems() {
     const cartItemsContainer = document.getElementById('cartItems');
+    const cartItems = cartModule.getCartItems();
     
-    if (cart.length === 0) {
+    if (cartItems.length === 0) {
         cartItemsContainer.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-shopping-cart"></i>
@@ -282,7 +219,7 @@ function renderCartItems() {
         return;
     }
     
-    cartItemsContainer.innerHTML = cart.map(item => `
+    cartItemsContainer.innerHTML = cartItems.map(item => `
         <div class="cart-item">
             <div class="cart-item-info">
                 <div class="cart-item-title">${item.name}</div>
@@ -306,7 +243,7 @@ function renderCartItems() {
 
 // 计算购物车总价
 function calculateCartTotal() {
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const total = cartModule.getCartTotal();
     document.getElementById('cartTotal').textContent = `¥${total.toFixed(2)}`;
     return total;
 }
@@ -324,33 +261,135 @@ function loadCart() {
     }
 }
 
-// 提交订单
-async function submitOrder() {
-    if (cart.length === 0) {
-        showNotification('购物车是空的，请先添加商品', 'error');
-        return;
-    }
+// 用户登录处理
+async function handleUserLogin(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
     
     try {
-        const response = await fetch(`${API_BASE_URL}/order`, {
+        const response = await fetch(`${API_BASE_URL}/user/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ items: cart })
+            body: JSON.stringify({ username, password })
         });
         
-        const data = await response.json();
+        const result = await response.json();
+        if (result.code === 200) {
+            // 保存用户信息到localStorage
+            currentUser = result.data;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            showNotification('登录成功', 'success');
+            closeModal(userLoginModal);
+            userLoginForm.reset();
+            
+            // 更新用户界面
+            updateUserInterface();
+        } else {
+            showNotification(result.msg, 'error');
+        }
+    } catch (error) {
+        console.error('登录失败:', error);
+        showNotification('网络错误，请稍后重试', 'error');
+    }
+}
+
+// 用户注册处理
+async function handleUserRegister(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('registerUsername').value;
+    const password = document.getElementById('registerPassword').value;
+    const phone = document.getElementById('registerPhone').value;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password, phone })
+        });
         
-        if (data.code === 200) {
+        const result = await response.json();
+        if (result.code === 200) {
+            showNotification('注册成功，请登录', 'success');
+            closeModal(userRegisterModal);
+            userRegisterForm.reset();
+            openModal(userLoginModal);
+        } else {
+            showNotification(result.msg, 'error');
+        }
+    } catch (error) {
+        console.error('注册失败:', error);
+        showNotification('网络错误，请稍后重试', 'error');
+    }
+}
+
+// 更新用户界面
+function updateUserInterface() {
+    if (currentUser) {
+        // 用户已登录，显示用户名
+        if (userLoginBtn) {
+            userLoginBtn.textContent = currentUser.username;
+        }
+        if (userRegisterBtn) {
+            userRegisterBtn.textContent = '退出登录';
+            userRegisterBtn.onclick = logoutUser;
+        }
+    } else {
+        // 用户未登录，显示登录/注册按钮
+        if (userLoginBtn) {
+            userLoginBtn.textContent = '用户登录';
+            userLoginBtn.onclick = () => openModal(userLoginModal);
+        }
+        if (userRegisterBtn) {
+            userRegisterBtn.textContent = '注册';
+            userRegisterBtn.onclick = () => openModal(userRegisterModal);
+        }
+    }
+}
+
+// 用户退出登录
+function logoutUser() {
+    currentUser = null;
+    localStorage.removeItem('currentUser');
+    showNotification('已退出登录', 'info');
+    updateUserInterface();
+}
+
+// 提交订单
+async function submitOrder() {
+    const cartItems = cartModule.getCartItems();
+    if (cartItems.length === 0) {
+        showNotification('购物车是空的，请先添加商品', 'error');
+        return;
+    }
+    
+    // 检查用户是否登录
+    if (!currentUser) {
+        showNotification('请先登录', 'warning');
+        closeModal(cartModal);
+        openModal(userLoginModal);
+        return;
+    }
+    
+    try {
+        const orderResult = await orderModule.submitNewOrder(cartItems);
+        
+        if (orderResult.code === 200) {
             // 订单提交成功
-            showOrderSuccess(data);
+            showOrderSuccess(orderResult.data);
             // 清空购物车
             clearCart();
             // 加载订单历史
             await loadOrderHistory();
         } else {
-            throw new Error(data.msg || '订单提交失败');
+            throw new Error(orderResult.msg || '订单提交失败');
         }
     } catch (error) {
         console.error('提交订单失败:', error);
@@ -376,13 +415,12 @@ function showOrderSuccess(orderData) {
 // 加载订单历史
 async function loadOrderHistory() {
     try {
-        const response = await fetch(`${API_BASE_URL}/orders`);
-        const data = await response.json();
+        const result = await orderModule.getOrderHistory();
         
-        if (data.code === 200) {
-            orders = data.data;
+        if (result.code === 200) {
+            orders = result.data;
         } else {
-            throw new Error('加载订单历史失败');
+            throw new Error(result.msg || '加载订单历史失败');
         }
     } catch (error) {
         console.error('加载订单历史失败:', error);
@@ -406,12 +444,32 @@ async function viewOrderHistory() {
             </div>
         `;
     } else {
-        orderHistoryList.innerHTML = orders.map(order => `
+        orderHistoryList.innerHTML = orders.map(order => {
+            // 获取订单状态的中文显示
+            let statusText;
+            switch(order.status) {
+                case 'pending':
+                    statusText = '待处理';
+                    break;
+                case 'processing':
+                    statusText = '处理中';
+                    break;
+                case 'completed':
+                    statusText = '已完成';
+                    break;
+                case 'cancelled':
+                    statusText = '已取消';
+                    break;
+                default:
+                    statusText = '未知状态';
+            }
+            
+            return `
             <div class="order-history-item">
                 <div class="order-history-header">
                     <div class="order-history-id">订单号: ${order.order_id}</div>
                     <div class="order-history-status ${order.status}">
-                        ${order.status === 'pending' ? '处理中' : '已完成'}
+                        ${statusText}
                     </div>
                 </div>
                 <div class="order-history-details">
@@ -419,8 +477,18 @@ async function viewOrderHistory() {
                     <p>订单金额: ¥${order.total_price.toFixed(2)}</p>
                     <p>商品数量: ${order.items.length} 件</p>
                 </div>
+                <div class="order-items-list">
+                    ${order.items.map(item => `
+                        <div class="order-item">
+                            <div class="order-item-name">${item.name}</div>
+                            <div class="order-item-quantity">×${item.quantity}</div>
+                            <div class="order-item-price">¥${item.price.toFixed(2)}</div>
+                        </div>
+                    `).join('')}
+                </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
     
     // 显示订单历史模态框
@@ -591,6 +659,26 @@ window.addEventListener('DOMContentLoaded', async () => {
     closeAddItemModal.addEventListener('click', () => closeModal(addItemModal));
     closeOrderSuccessModal.addEventListener('click', () => closeModal(orderSuccessModal));
     closeOrderHistoryModal.addEventListener('click', () => closeModal(orderHistoryModal));
+    closeUserLoginModal.addEventListener('click', () => closeModal(userLoginModal));
+    closeUserRegisterModal.addEventListener('click', () => closeModal(userRegisterModal));
+    
+    // 用户相关模态框事件
+    userLoginBtn.addEventListener('click', () => openModal(userLoginModal));
+    userRegisterBtn.addEventListener('click', () => openModal(userRegisterModal));
+    
+    // 切换登录/注册模态框
+    if (switchToRegisterBtn) {
+        switchToRegisterBtn.addEventListener('click', () => {
+            closeModal(userLoginModal);
+            openModal(userRegisterModal);
+        });
+    }
+    if (switchToLoginBtn) {
+        switchToLoginBtn.addEventListener('click', () => {
+            closeModal(userRegisterModal);
+            openModal(userLoginModal);
+        });
+    }
     
     // 表单提交事件
     if (adminLoginForm) {
@@ -598,6 +686,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
     if (addItemForm) {
         addItemForm.addEventListener('submit', handleAddItem);
+    }
+    if (userLoginForm) {
+        userLoginForm.addEventListener('submit', handleUserLogin);
+    }
+    if (userRegisterForm) {
+        userRegisterForm.addEventListener('submit', handleUserRegister);
     }
 });
 

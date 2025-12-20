@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neo Dining - 新派餐厅</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="./styles/main.css">
+    <link rel="stylesheet" href="./styles/glassmorphism.css">
+    <link rel="stylesheet" href="./styles/style.css">
 </head>
 <body>
-    <!-- 背景效果 -->
     <div class="background-effects">
         <div class="glass-shape shape-1"></div>
         <div class="glass-shape shape-2"></div>
@@ -15,7 +18,6 @@
     </div>
 
     <div class="container">
-        <!-- 顶部导航栏 -->
         <header class="header glass-effect">
             <div class="logo">Neo Dining</div>
             
@@ -25,6 +27,8 @@
             </div>
             
             <div class="header-right">
+                <button id="userLoginBtn" class="user-btn glass-effect">用户登录</button>
+                <button id="userRegisterBtn" class="user-btn glass-effect">注册</button>
                 <button id="adminLoginBtn" class="admin-btn glass-effect">Admin Login</button>
                 <button id="cartBtn" class="cart-btn glass-effect">
                     <i class="fas fa-shopping-cart"></i>
@@ -33,7 +37,6 @@
             </div>
         </header>
 
-        <!-- 分类标签 -->
         <div class="category-tabs glass-effect">
             <button class="tab-btn active" data-category="all">All</button>
             <button class="tab-btn" data-category="东南亚风味">东南亚风味</button>
@@ -42,14 +45,11 @@
             <button class="tab-btn" data-category="中式经典">中式经典</button>
         </div>
 
-        <!-- 菜品展示区域 -->
         <main class="menu-container">
             <div id="menuGrid" class="menu-grid">
-                <!-- 菜品会通过JavaScript动态生成 -->
-            </div>
+                </div>
         </main>
 
-        <!-- 购物车弹窗 -->
         <div id="cartModal" class="modal glass-effect">
             <div class="modal-content glass-effect">
                 <div class="modal-header">
@@ -58,8 +58,7 @@
                 </div>
                 <div class="modal-body">
                     <div id="cartItems" class="cart-items">
-                        <!-- 购物车项会通过JavaScript动态生成 -->
-                    </div>
+                        </div>
                     <div class="cart-total">
                         <span>总计:</span>
                         <span id="cartTotal">¥0.00</span>
@@ -72,7 +71,6 @@
             </div>
         </div>
 
-        <!-- 管理员登录弹窗 -->
         <div id="adminLoginModal" class="modal glass-effect">
             <div class="modal-content glass-effect">
                 <div class="modal-header">
@@ -93,7 +91,6 @@
             </div>
         </div>
 
-        <!-- 添加菜品弹窗 -->
         <div id="addItemModal" class="modal glass-effect">
             <div class="modal-content glass-effect">
                 <div class="modal-header">
@@ -132,7 +129,6 @@
             </div>
         </div>
 
-        <!-- 订单成功弹窗 -->
         <div id="orderSuccessModal" class="modal glass-effect">
             <div class="modal-content glass-effect">
                 <div class="modal-header">
@@ -144,8 +140,7 @@
                         <i class="fas fa-check-circle"></i>
                     </div>
                     <div id="orderDetails" class="order-details">
-                        <!-- 订单详情会通过JavaScript动态生成 -->
-                    </div>
+                        </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" id="continueShoppingBtn">继续购物</button>
@@ -154,7 +149,6 @@
             </div>
         </div>
 
-        <!-- 订单历史弹窗 -->
         <div id="orderHistoryModal" class="modal glass-effect">
             <div class="modal-content glass-effect">
                 <div class="modal-header">
@@ -163,11 +157,64 @@
                 </div>
                 <div class="modal-body">
                     <div id="orderHistoryList" class="order-history-list">
-                        <!-- 订单历史会通过JavaScript动态生成 -->
-                    </div>
+                        </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" id="closeHistoryBtn">关闭</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="userLoginModal" class="modal glass-effect">
+            <div class="modal-content glass-effect">
+                <div class="modal-header">
+                    <h2>用户登录</h2>
+                    <button class="close-btn" id="closeUserLoginModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="userLoginForm">
+                        <div class="form-group">
+                            <label for="loginUsername">用户名:</label>
+                            <input type="text" id="loginUsername" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">密码:</label>
+                            <input type="password" id="loginPassword" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">登录</button>
+                            <button type="button" class="btn btn-secondary" id="switchToRegister">去注册</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="userRegisterModal" class="modal glass-effect">
+            <div class="modal-content glass-effect">
+                <div class="modal-header">
+                    <h2>用户注册</h2>
+                    <button class="close-btn" id="closeUserRegisterModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="userRegisterForm">
+                        <div class="form-group">
+                            <label for="registerUsername">用户名:</label>
+                            <input type="text" id="registerUsername" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPassword">密码:</label>
+                            <input type="password" id="registerPassword" required minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPhone">手机号:</label>
+                            <input type="tel" id="registerPhone">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">注册</button>
+                            <button type="button" class="btn btn-secondary" id="switchToLogin">去登录</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
